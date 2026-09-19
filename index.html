@@ -302,7 +302,7 @@
     <svg width="46" height="46" viewBox="0 0 60 60"><polygon points="9,3 51,3 58,57 2,57" fill="#2b3346" stroke="#d3a34e" stroke-width="1.5"/><path d="M22 42 L30 12 L38 42 M25 30 L35 30" stroke="#eec27a" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
     <div class="brand-text">
       <h1>The Runic System</h1>
-      <p>Twelve Runes of Ran &middot; Mr. Sasha's Campaign</p>
+      <p>Twelve Runes of Ran &middot; </p>
     </div>
   </div>
   <div class="who">
@@ -335,7 +335,7 @@
   <section id="tab-roll" class="tabpane">
     <div class="panel">
       <h2>Redeem a Power Word</h2>
-      <p class="lede">A Power Word is <strong>not</strong> the one-time Milestone Code below — it's a shared word Mr. Sasha sets for the <em>whole class</em> to reward a group win. Every adventurer can redeem it once each, and redeeming it rolls for <strong>one</strong> random rune (not three). Power Words expire 12 hours after your teacher creates them.</p>
+      <p class="lede">A Power Word is a word an educator sets for the <em>whole class</em> to reward a group win. Every adventurer can redeem it once each, and redeeming it rolls for <strong>one</strong> random rune (not three). Power Words expire 12 hours after creation.</p>
       <div class="roll-form">
         <div class="field">
           <label for="powerWordInput">Power Word</label>
@@ -349,7 +349,7 @@
 
     <div class="panel">
       <h2>Roll for Runes</h2>
-      <p class="lede">Enter the six-digit milestone code Mr. Sasha gave you at your last quest milestone (not your personal PIN). Each code works once and grants three runes. You'll also be asked for your own 4-digit adventurer PIN, to prove these are your runes.</p>
+      <p class="lede">Enter the six-digit milestone code Mr. Sasha gave you at your last quest milestone (not your personal PIN). Each code works once and grants three runes.</p>
       <div class="roll-form">
         <div class="field">
           <label for="pinInput">One-time Milestone Code</label>
@@ -423,7 +423,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="10" width="16" height="10" rx="1"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
         <div>
           <h2 style="margin-bottom:6px;">Teacher Access</h2>
-          <p class="lede" style="margin:0 auto;">Enter your teacher passphrase to generate PINs and manage students. First time here? Type any passphrase (3+ characters) and it becomes the shared one for the whole class.</p>
+          <p class="lede" style="margin:0 auto;">Enter your teacher passphrase to generate PINs and manage students.</p>
         </div>
         <div class="row">
           <input type="password" id="teacherPass" placeholder="Passphrase" style="width:200px;">
@@ -439,7 +439,7 @@
           <h2>Generate a Milestone Code</h2>
           <button class="btn small ghost" id="teacherLockBtn">Lock</button>
         </div>
-        <p class="lede">Create a new one-time six-digit code and read/write it on the board for a quest milestone. This is separate from each student's personal 4-digit PIN.</p>
+        <p class="lede">Create a new one-time six-digit code redeemable for 3 runes.</p>
         <button class="btn" id="genPinBtn">Generate Code</button>
         <div id="newPinDisplay"></div>
       </div>
@@ -449,7 +449,7 @@
           <h2>Set a Power Word</h2>
           <button class="btn ghost small" id="refreshPowerWordBtn">Refresh</button>
         </div>
-        <p class="lede">A Power Word rewards the <strong>whole class</strong> at once — set one word (3–12 characters) and any adventurer can redeem it on the Roll page for one random rune. It's separate from Milestone Codes, doesn't need a PIN list, and expires automatically 12 hours after you create it. Setting a new Power Word replaces whatever one is currently active.</p>
+        <p class="lede">A Power Word rewards the <strong>whole class</strong> at once — set one word (3–12 characters) and any adventurer can redeem it on the Roll page for one random rune. It's expires automatically 12 hours after you create it. Setting a new Power Word replaces whatever one is currently active.</p>
         <div class="roll-form">
           <div class="field">
             <label for="powerWordSetInput">New Power Word</label>
@@ -495,7 +495,7 @@
 
 </main>
 
-<footer class="note">Synced live to your class's shared Google Sheet — safe to use from any device.</footer>
+<footer class="note">Not all who wander are lost, adventurer.</footer>
 </div>
 
 <!-- Settings overlay -->
