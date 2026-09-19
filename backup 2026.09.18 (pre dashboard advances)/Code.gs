@@ -28,21 +28,6 @@
  *  2. Run "setup" once more (adds the new PIN columns to your existing
  *     Students sheet without touching anyone's rune counts).
  *  3. Deploy > Manage deployments > pencil icon > Version: New version > Deploy.
- *
- * UPGRADING an existing deployment to add teacher-managed items + the
- * God Rune transform:
- *  1. Replace the old Code.gs contents with this file, and the old
- *     index.html with the new one.
- *  2. Run "setup" once more. This creates a new "Runewords" sheet tab and,
- *     since it's empty on first run, fills it with the same runeword
- *     catalog that used to be hardcoded — nobody's crafted items or rune
- *     counts are touched.
- *  3. Deploy > Manage deployments > pencil icon > Version: New version > Deploy.
- *  4. From then on, add/edit/hide/delete runewords from the Teacher tab in
- *     the app itself — no more code edits needed for game-content changes.
- *  5. Any student can now forge a God Rune under the Transform tab by
- *     destroying one of every ordinary rune at once. "Grant a God Rune" is
- *     gone from the Teacher tab, since it's no longer how students get one.
  */
 
 const SS = SpreadsheetApp.getActiveSpreadsheet();
@@ -68,100 +53,35 @@ const ALL_INV_CODES = RUNE_CODES.concat(["GOD"]);
 const RUNE_POINTS = {};
 RUNES.forEach(function (r) { RUNE_POINTS[r.code] = r.points; });
 
-// This used to be the live source of truth for runewords, duplicated by
-// hand in index.html. It's now only a one-time seed: on first "setup" run,
-// these rows are copied into a "Runewords" sheet tab, which becomes the
-// real source of truth from then on (see Section 9 of the tech guide —
-// this note supersedes it). The teacher manages runewords from the Teacher
-// tab in the app (add/edit/hide/delete), no code edits or redeploys needed
-// for game-content changes anymore.
-const RUNEWORD_SEED = [
-  { id: "enigma", name: "Enigma", slot: "Chest Armor", recipe: ["BER", "NEF", "THUL", "ORT"],
-    effect: "Once per long rest, cast Teleport on yourself.",
-    quote: "It's a riddle wrapped in a mystery inside an enigma…" },
-  { id: "cling", name: "Cling", slot: "Gloves", recipe: ["IO", "NEF", "ITH"],
-    effect: "Once per long rest, firmly attach your gloves to an object for 30 minutes. Passively +2 to Sleight of Hand checks.",
-    quote: "Loss of loving connection is coded by the human brain into a primal panic response." },
-  { id: "prism", name: "Prism", slot: "Necklace", recipe: ["TIR", "NEF", "TAL"],
-    effect: "Once per long rest, change your eye colour until you use it again.",
-    quote: "Life is a painting, and you are the artist." },
-  { id: "rizz", name: "Silver Tongue of Rizz", slot: "Eyewear", recipe: ["SHAEL", "IO"],
-    effect: "Once per long rest, add 1d10 to a single Charisma-based check.",
-    quote: "One man's ways may be as good as another's, but we all like our own best." },
-  { id: "quicksilver", name: "Quicksilver", slot: "Harness / Bridle", recipe: ["LUM", "ORT", "ITH"],
-    effect: "Any mount wearing this has its move speed doubled.",
-    quote: "Faster, faster, until the thrill of speed overcomes the fear of death." },
-  { id: "charger", name: "Charger", slot: "Harness / Bridle", recipe: ["BER", "THUL", "TAL", "SHAEL"],
-    effect: "When attached to a mount, the rider cannot be knocked off.",
-    quote: "When you have exhausted all possibilities, remember this: you haven't." },
-  { id: "precious", name: "Precious", slot: "Ring", recipe: ["ZOD", "LUM", "THUL"],
-    effect: "Once per long rest, cast Invisibility on yourself. Each combat turn, roll a d20 — a 7 or less adds a Short-Term Madness effect for the fight.",
-    quote: "What makes something precious? Losing and finding it." },
-  { id: "hive", name: "Hive", slot: "Boots", recipe: ["BER", "LUM", "ORT", "ITH"],
-    effect: "Once per long rest, shrink to the size of an ant for 3 minutes.",
-    quote: "People, chained by monotony, afraid to think, clinging to certainties... they live like ants." },
-  { id: "starboard", name: "Starboard", slot: "Oar / Paddle", recipe: ["IO", "NEF", "TIR"],
-    effect: "Once per day, discharge lightning into water within 30 feet. Targets: DC15 Con save, [caster level]d8 damage, half on success.",
-    quote: "What is a soul? It's like electricity - we don't really know what it is, but it's a force that can light the world." },
-  { id: "carotene", name: "Blade of Carotene", slot: "Sword", recipe: ["IO", "NEF", "TIR"],
-    effect: "A sword of carrots. Grants Darkvision. Crits on 19 or 20 in the dark, plus 2d6 extra damage in the dark.",
-    quote: "" },
-  { id: "folly", name: "Folly", slot: "Scarf", recipe: ["ZOD", "SHAEL", "ORT"],
-    effect: "Increases Strength to 666,666 for one second — then you instantly die.",
-    quote: "Man's wisdom is his best friend; folly his worst enemy." },
-  { id: "insolence", name: "Insolence", slot: "Weapon", recipe: ["LUM", "SHAEL", "ORT", "TAL"],
-    effect: "Three times per long rest, gain advantage on attacks against characters over 150 years old.",
-    quote: "Youth is insolent; it is its right – its necessity; all assertion in this world of doubts is a defiance, is an insolence…" },
-  { id: "sage", name: "Sage", slot: "Earrings", recipe: ["TIR", "NEF", "ORT", "SHAEL"],
-    effect: "Once per day, understand (but not speak) the language of animals for 3 minutes.",
-    quote: "The wise understand that knowing animals allows us to better know ourselves." },
-  { id: "lark", name: "Lark", slot: "Scarf", recipe: ["ITH", "TAL", "THUL", "IO"],
-    effect: "Once per day, speak to (but not understand) animals for 3 minutes.",
-    quote: "I may look normal, but believe me, I talk to animals and wait for them to reply." },
-  { id: "inferno", name: "Inferno", slot: "Dish", recipe: ["ZOD", "IO", "THUL"],
-    effect: "Once per long rest, whoever eats from this dish can cast Dragon's Breath — DC15 Con save or 2d6 fire damage.",
-    quote: "I may look normal, but believe me, I talk to animals and wait for them to reply." },
-  { id: "socks", name: "Socks of Blocks", slot: "Socks", recipe: ["ZOD", "JAH", "IO", "TAL"],
-    effect: "Once per long rest, convert an item smaller than a microwave into brick-sized, reassemblable blocks for 1 hour.",
-    quote: "Socks of blocks and blocks of socks." },
-  { id: "north", name: "Invigorated by the North", slot: "Pendant / Necklace", recipe: ["LUM", "SHAEL", "TAL"],
-    effect: "In cold environments, you take no exhaustion.",
-    quote: "Brrr, it's NOT cold in here." },
-  { id: "bramble", name: "Bramble", slot: "Leg Armor", recipe: ["SHAEL", "ORT", "NEF", "TIR"],
-    effect: "Attackers who strike you take 1d4 piercing damage. Once per day, cast Entangle.",
-    quote: "Just like the dead limbs and overgrowth of trees, it is superfluous. Let it all go." },
-  { id: "crescent", name: "Crescent Moon", slot: "Musical Instrument", recipe: ["BER", "SHAEL", "TAL", "ITH"],
-    effect: "Once per long rest, cast Summon Spirit Wolf.",
-    quote: "For the strength of the pack is the wolf. And the strength of the wolf is the pack." },
-  { id: "harmony", name: "Harmony", slot: "Head Armor", recipe: ["LUM", "IO", "TAL", "TIR"],
-    effect: "Once per long rest, cast Mass Healing Word on targets of your choosing.",
-    quote: "Music doesn't get in. Music is already in. Music simply uncovers what is there." },
-  { id: "summarmaekir", name: "Summarmækir", slot: "Weapon", recipe: ["GOD", "ZOD", "JAH", "IO"],
-    effect: "+3 sword. Can be thrown and guided (+½ exhaustion to the thrower on a hit). Once per long rest, cast Sunburst.",
-    quote: "Yes, child, this weapon WAS held by the god Frey. It warms the wielder like a Summer's day." },
-  { id: "ransnet", name: "Ran's Net", slot: "Weapon", recipe: ["GOD", "BER", "LUM", "SHAEL"],
-    effect: "Once per day, cast a magic net on a target (DC20 Dex save to escape). Each turn restrained, the target suffers Vampiric Touch before acting.",
-    quote: "Ethical fishing at its finest. — Senlin" },
-  { id: "herofeller", name: "Herofeller", slot: "Scabbard", recipe: ["TIR", "TAL", "ORT", "IO"],
-    effect: "The first attack with a weapon drawn from this scabbard deals an extra 1d4 poison damage for 10 turns. Refills on a long rest.",
-    quote: "This doesn't feel sanitary." },
-  { id: "coolth", name: "Coolth", slot: "Pillow", recipe: ["TIR", "THUL", "SHAEL", "LUM"],
-    effect: "Perpetually cold on both sides. Once per 3 days, treat a short rest as a long rest.",
-    quote: "I may look normal, but believe me, I talk to animals and wait for them to reply." },
-  { id: "misfortune", name: "Amulet of Misfortune", slot: "Necklace", recipe: ["TIR", "SHAEL", "THUL", "NEF"],
-    effect: "Once per long rest, create a blazing light and cast Light Binding.",
-    quote: "I saw the light, I saw the light. No more darkness, no more night." },
-  { id: "stuffed", name: "Stuffed Buddy", slot: "Doll", recipe: ["ITH", "NEF", "THUL", "IO"],
-    effect: "Tuck this doll in for 3 nights running with your runes inside — it wakes as your familiar.",
-    quote: "Who's my lil guy? Who's my lil' buddy?" },
+const RUNEWORDS = [
+  { id: "enigma", name: "Enigma", recipe: ["BER", "NEF", "THUL", "ORT"] },
+  { id: "cling", name: "Cling", recipe: ["IO", "NEF", "ITH"] },
+  { id: "prism", name: "Prism", recipe: ["TIR", "NEF", "TAL"] },
+  { id: "rizz", name: "Silver Tongue of Rizz", recipe: ["SHAEL", "IO"] },
+  { id: "quicksilver", name: "Quicksilver", recipe: ["LUM", "ORT", "ITH"] },
+  { id: "charger", name: "Charger", recipe: ["BER", "THUL", "TAL", "SHAEL"] },
+  { id: "precious", name: "Precious", recipe: ["ZOD", "LUM", "THUL"] },
+  { id: "hive", name: "Hive", recipe: ["BER", "LUM", "ORT", "ITH"] },
+  { id: "starboard", name: "Starboard", recipe: ["IO", "NEF", "TIR"] },
+  { id: "carotene", name: "Blade of Carotene", recipe: ["IO", "NEF", "TIR"] },
+  { id: "folly", name: "Folly", recipe: ["ZOD", "SHAEL", "ORT"] },
+  { id: "insolence", name: "Insolence", recipe: ["LUM", "SHAEL", "ORT", "TAL"] },
+  { id: "sage", name: "Sage", recipe: ["TIR", "NEF", "ORT", "SHAEL"] },
+  { id: "lark", name: "Lark", recipe: ["ITH", "TAL", "THUL", "IO"] },
+  { id: "inferno", name: "Inferno", recipe: ["ZOD", "IO", "THUL"] },
+  { id: "socks", name: "Socks of Blocks", recipe: ["ZOD", "JAH", "IO", "TAL"] },
+  { id: "north", name: "Invigorated by the North", recipe: ["LUM", "SHAEL", "TAL"] },
+  { id: "bramble", name: "Bramble", recipe: ["SHAEL", "ORT", "NEF", "TIR"] },
+  { id: "crescent", name: "Crescent Moon", recipe: ["BER", "SHAEL", "TAL", "ITH"] },
+  { id: "harmony", name: "Harmony", recipe: ["LUM", "IO", "TAL", "TIR"] },
+  { id: "summarmaekir", name: "Summarmækir", recipe: ["GOD", "ZOD", "JAH", "IO"] },
+  { id: "ransnet", name: "Ran's Net", recipe: ["GOD", "BER", "LUM", "SHAEL"] },
+  { id: "herofeller", name: "Herofeller", recipe: ["TIR", "TAL", "ORT", "IO"] },
+  { id: "coolth", name: "Coolth", recipe: ["TIR", "THUL", "SHAEL", "LUM"] },
+  { id: "misfortune", name: "Amulet of Misfortune", recipe: ["TIR", "SHAEL", "THUL", "NEF"] },
+  { id: "stuffed", name: "Stuffed Buddy", recipe: ["ITH", "NEF", "THUL", "IO"] },
 ];
 const SOUR_KEY_BASE = ["SHAEL", "IO", "JAH", "BER"];
-
-const RUNEWORD_HEADERS = ["Id", "Name", "Slot", "Recipe", "Effect", "Quote", "Image", "Hidden", "UpdatedAt"];
-// Keeps each Runewords!Image cell safely under a Google Sheet cell's ~50,000
-// character limit. The frontend compresses/resizes photos before upload to
-// stay under this, but the backend re-checks in case a caller skips that.
-const MAX_IMAGE_CHARS = 45000;
 
 const PIN_LOCKOUT_MS = 60000; // 60s lockout after too many wrong PIN attempts
 const PIN_MAX_FAILS = 5;
@@ -176,24 +96,6 @@ function setup() {
   ensureColumns_(sh, studentHeaders);
   ensureSheet_("Pins", ["Code", "Used", "UsedBy", "CreatedAt", "UsedAt"]);
   ensureSheet_("Config", ["Key", "Value"]);
-  seedRunewords_();
-}
-
-// Creates the Runewords sheet (if missing) and, only if it's empty, fills
-// it with the built-in RUNEWORD_SEED catalog. Safe to re-run: once any
-// rows exist (including teacher-added or teacher-edited ones), this never
-// touches them again.
-function seedRunewords_() {
-  var sh = ensureSheet_("Runewords", RUNEWORD_HEADERS);
-  ensureColumns_(sh, RUNEWORD_HEADERS);
-  if (sh.getLastRow() <= 1) {
-    RUNEWORD_SEED.forEach(function (item) {
-      sh.appendRow([
-        item.id, item.name, item.slot, JSON.stringify(item.recipe),
-        item.effect || "", item.quote || "", "", false, new Date().toISOString()
-      ]);
-    });
-  }
 }
 
 function ensureSheet_(name, headers) {
@@ -209,88 +111,6 @@ function ensureColumns_(sh, headers) {
   var toAdd = headers.filter(function (h) { return existing.indexOf(h) === -1; });
   if (toAdd.length) {
     sh.getRange(1, lastCol + 1, 1, toAdd.length).setValues([toAdd]);
-  }
-}
-
-/* ---------------- Runeword (item) row helpers ---------------- */
-// The Runewords sheet is now the single source of truth for runeword game
-// content (name, slot, recipe, description, quote, photo, hidden flag).
-// The Teacher tab's "Manage Items" panel calls the teacher* actions below
-// to add/edit/hide/delete rows here — no code edits or redeploys needed.
-
-function runewordsSheet_() { return SS.getSheetByName("Runewords"); }
-
-function rowToRuneword_(headers, values) {
-  var obj = {};
-  headers.forEach(function (h, i) { obj[h] = values[i]; });
-  var recipe = [];
-  try { recipe = JSON.parse(obj.Recipe || "[]"); } catch (e) { recipe = []; }
-  return {
-    id: obj.Id,
-    name: obj.Name,
-    slot: obj.Slot,
-    recipe: recipe,
-    effect: obj.Effect || "",
-    quote: obj.Quote || "",
-    image: obj.Image || "",
-    hidden: obj.Hidden === true || obj.Hidden === "TRUE"
-  };
-}
-
-// includeHidden=false (default) is what students see (Craft, Codex).
-// includeHidden=true is what the Teacher tab's item manager sees.
-function readRunewords_(includeHidden) {
-  var sh = runewordsSheet_();
-  var values = sh.getDataRange().getValues();
-  if (values.length < 2) return [];
-  var headers = values[0];
-  var out = [];
-  for (var i = 1; i < values.length; i++) {
-    if (!values[i][0]) continue; // skip any blank row
-    var item = rowToRuneword_(headers, values[i]);
-    if (!includeHidden && item.hidden) continue;
-    out.push(item);
-  }
-  return out;
-}
-
-function findRunewordRowIndex_(sh, id) {
-  var values = sh.getDataRange().getValues();
-  for (var i = 1; i < values.length; i++) {
-    if (String(values[i][0]) === String(id)) return i + 1;
-  }
-  return -1;
-}
-
-function writeRunewordFields_(sh, row, fields) {
-  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
-  Object.keys(fields).forEach(function (key) {
-    var col = headers.indexOf(key) + 1;
-    if (col > 0) sh.getRange(row, col).setValue(fields[key]);
-  });
-}
-
-function slugify_(name) {
-  return String(name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "item";
-}
-
-function uniqueRunewordId_(sh, base) {
-  var id = base, n = 2;
-  while (findRunewordRowIndex_(sh, id) !== -1) { id = base + "-" + n; n++; }
-  return id;
-}
-
-function validateRecipe_(recipe) {
-  if (!Array.isArray(recipe) || recipe.length === 0) throw new Error("Pick at least one rune for the recipe.");
-  recipe.forEach(function (code) {
-    code = String(code).toUpperCase();
-    if (ALL_INV_CODES.indexOf(code) === -1) throw new Error("Unknown rune in recipe: " + code);
-  });
-}
-
-function validateImage_(image) {
-  if (image && String(image).length > MAX_IMAGE_CHARS) {
-    throw new Error("That photo is too large even after compression — try a smaller image.");
   }
 }
 
@@ -314,16 +134,11 @@ function doPost(e) {
       case "transform": data = apiTransform(body.name, body.target, body.selection, body.authPin); break;
       case "craft": data = apiCraft(body.name, body.itemId, body.authPin); break;
       case "craftSour": data = apiCraftSour(body.name, body.mult, body.authPin); break;
-      case "getRunewords": data = apiGetRunewords(); break;
       case "teacherSetup": data = apiTeacherSetup(body.pass); break;
       case "teacherLogin": data = apiTeacherLogin(body.pass); break;
       case "teacherGeneratePin": data = apiTeacherGeneratePin(body.pass); break;
+      case "teacherGrantGod": data = apiTeacherGrantGod(body.pass, body.name); break;
       case "teacherListPins": data = apiTeacherListPins(body.pass); break;
-      case "teacherListRunewords": data = apiTeacherListRunewords(body.pass); break;
-      case "teacherAddRuneword": data = apiTeacherAddRuneword(body.pass, body); break;
-      case "teacherEditRuneword": data = apiTeacherEditRuneword(body.pass, body.id, body); break;
-      case "teacherSetRunewordHidden": data = apiTeacherSetRunewordHidden(body.pass, body.id, body.hidden); break;
-      case "teacherDeleteRuneword": data = apiTeacherDeleteRuneword(body.pass, body.id); break;
       case "teacherListStudents": data = apiTeacherListStudents(body.pass); break;
       case "teacherResetPin": data = apiTeacherResetPin(body.pass, body.name); break;
       case "teacherReset": data = apiTeacherReset(body.pass); break;
@@ -572,7 +387,7 @@ function apiRoll(name, code, authPin) {
 
 function apiTransform(name, target, selection, authPin) {
   requireName_(name);
-  if (target !== "GOD" && !RUNE_POINTS[target]) throw new Error("Unknown target rune.");
+  if (!RUNE_POINTS[target]) throw new Error("Unknown target rune.");
   selection = selection || {};
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
@@ -582,24 +397,6 @@ function apiTransform(name, target, selection, authPin) {
     checkPin_(sh, row, authPin);
 
     var student = readStudentPublic_(sh, row);
-
-    // God Runes are no longer hand-granted by the teacher. Instead, a
-    // student forges one by destroying exactly one of each of the twelve
-    // ordinary runes at once — this is a fixed recipe, not a point-value
-    // trade like an ordinary Transform.
-    if (target === "GOD") {
-      var godDeltas = {};
-      RUNE_CODES.forEach(function (code) {
-        var qty = Number(selection[code]) || 0;
-        if (qty < 1) throw new Error("You need one of every ordinary rune to forge a God Rune.");
-        if (qty > (student.inventory[code] || 0)) throw new Error("You don't own that many " + code + " runes.");
-        godDeltas[code] = -1;
-      });
-      godDeltas.GOD = (godDeltas.GOD || 0) + 1;
-      writeInventoryDelta_(sh, row, godDeltas);
-      return readStudentPublic_(sh, row);
-    }
-
     var total = 0;
     Object.keys(selection).forEach(function (code) {
       var qty = Number(selection[code]) || 0;
@@ -622,9 +419,8 @@ function apiTransform(name, target, selection, authPin) {
 function apiCraft(name, itemId, authPin) {
   requireName_(name);
   var item = null;
-  var items = readRunewords_(false); // hidden items can't be crafted
-  for (var i = 0; i < items.length; i++) { if (items[i].id === itemId) { item = items[i]; break; } }
-  if (!item) throw new Error("Unknown or unavailable runeword.");
+  for (var i = 0; i < RUNEWORDS.length; i++) { if (RUNEWORDS[i].id === itemId) { item = RUNEWORDS[i]; break; } }
+  if (!item) throw new Error("Unknown runeword.");
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
@@ -721,112 +517,16 @@ function apiTeacherGeneratePin(pass) {
   } finally { lock.releaseLock(); }
 }
 
-/* ---------------- Runeword (item) management — student-facing ---------------- */
-
-// Public: returns every visible runeword. Called by the frontend on load
-// to populate the Craft grid and Codex compendium, instead of keeping its
-// own hardcoded copy.
-function apiGetRunewords() {
-  return readRunewords_(false);
-}
-
-/* ---------------- Runeword (item) management — teacher-facing ---------------- */
-
-function apiTeacherListRunewords(pass) {
+function apiTeacherGrantGod(pass, name) {
   requireTeacher_(pass);
-  return readRunewords_(true);
-}
-
-function apiTeacherAddRuneword(pass, body) {
-  requireTeacher_(pass);
-  var name = String(body.name || "").trim();
-  if (!name) throw new Error("Give the item a name.");
-  var slot = String(body.slot || "").trim();
-  if (!slot) throw new Error("Give the item a slot (e.g. Ring, Boots).");
-  var recipe = (body.recipe || []).map(function (c) { return String(c).toUpperCase(); });
-  validateRecipe_(recipe);
-  var image = body.image ? String(body.image) : "";
-  validateImage_(image);
+  requireName_(name);
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    var sh = runewordsSheet_();
-    var id = uniqueRunewordId_(sh, slugify_(name));
-    sh.appendRow([
-      id, name, slot, JSON.stringify(recipe),
-      String(body.effect || "").trim(), String(body.quote || "").trim(),
-      image, false, new Date().toISOString()
-    ]);
-    return readRunewords_(true);
-  } finally { lock.releaseLock(); }
-}
-
-function apiTeacherEditRuneword(pass, id, body) {
-  requireTeacher_(pass);
-  if (!id) throw new Error("Missing item id.");
-  var lock = LockService.getScriptLock();
-  lock.waitLock(10000);
-  try {
-    var sh = runewordsSheet_();
-    var row = findRunewordRowIndex_(sh, id);
-    if (row === -1) throw new Error("That item no longer exists.");
-    var fields = {};
-    if (body.name !== undefined) {
-      var name = String(body.name).trim();
-      if (!name) throw new Error("Give the item a name.");
-      fields.Name = name;
-    }
-    if (body.slot !== undefined) {
-      var slot = String(body.slot).trim();
-      if (!slot) throw new Error("Give the item a slot.");
-      fields.Slot = slot;
-    }
-    if (body.recipe !== undefined) {
-      var recipe = (body.recipe || []).map(function (c) { return String(c).toUpperCase(); });
-      validateRecipe_(recipe);
-      fields.Recipe = JSON.stringify(recipe);
-    }
-    if (body.effect !== undefined) fields.Effect = String(body.effect).trim();
-    if (body.quote !== undefined) fields.Quote = String(body.quote).trim();
-    if (body.image !== undefined) {
-      var image = String(body.image || "");
-      validateImage_(image);
-      fields.Image = image;
-    }
-    fields.UpdatedAt = new Date().toISOString();
-    writeRunewordFields_(sh, row, fields);
-    return readRunewords_(true);
-  } finally { lock.releaseLock(); }
-}
-
-function apiTeacherSetRunewordHidden(pass, id, hidden) {
-  requireTeacher_(pass);
-  if (!id) throw new Error("Missing item id.");
-  var lock = LockService.getScriptLock();
-  lock.waitLock(10000);
-  try {
-    var sh = runewordsSheet_();
-    var row = findRunewordRowIndex_(sh, id);
-    if (row === -1) throw new Error("That item no longer exists.");
-    writeRunewordFields_(sh, row, { Hidden: !!hidden, UpdatedAt: new Date().toISOString() });
-    return readRunewords_(true);
-  } finally { lock.releaseLock(); }
-}
-
-// Permanently removes an item from the catalog. Students who already
-// crafted it keep it in their Crafted list (that's just a name+timestamp
-// snapshot, not a live reference), but no one can craft it again.
-function apiTeacherDeleteRuneword(pass, id) {
-  requireTeacher_(pass);
-  if (!id) throw new Error("Missing item id.");
-  var lock = LockService.getScriptLock();
-  lock.waitLock(10000);
-  try {
-    var sh = runewordsSheet_();
-    var row = findRunewordRowIndex_(sh, id);
-    if (row === -1) throw new Error("That item no longer exists.");
-    sh.deleteRow(row);
-    return readRunewords_(true);
+    var sh = studentsSheet_();
+    var row = ensureStudentRow_(sh, name);
+    writeInventoryDelta_(sh, row, { GOD: 1 });
+    return readStudentPublic_(sh, row);
   } finally { lock.releaseLock(); }
 }
 

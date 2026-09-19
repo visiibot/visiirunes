@@ -176,8 +176,6 @@
     padding:8px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;
   }
   .target-pick.active{border-color:var(--amber);background:#33301f;}
-  .target-pick.god-target{border-color:var(--god);color:var(--god);}
-  .target-pick.god-target.active{background:#3a1f42;}
   .target-pick svg{width:22px;height:22px;}
   .stepper{display:flex;align-items:center;gap:8px;}
   .stepper button{
@@ -228,29 +226,6 @@
   .req-chip.have{border-color:var(--fjord);color:var(--fjord);}
   .req-chip.missing{border-color:var(--blood);color:#e08a75;}
   .req-chip.god{border-color:var(--god);color:var(--god);}
-
-  .admin-item-row{
-    display:flex;align-items:center;gap:14px;padding:10px 0;
-    border-bottom:1px dashed var(--stone-line);
-  }
-  .admin-item-row.hidden-item{opacity:0.5;}
-  .admin-item-thumb{width:54px;height:54px;flex-shrink:0;}
-  .admin-item-info{flex:1;min-width:0;}
-  .admin-item-info .name{font-family:'Cinzel',serif;color:var(--ink);font-size:0.9rem;display:flex;align-items:center;gap:8px;}
-  .admin-item-info .meta{font-size:0.78rem;color:var(--ink-faint);margin-top:2px;}
-
-  .item-form{
-    background:var(--bg-deep);border:1px solid var(--stone-line);border-radius:var(--radius);
-    padding:18px;margin:14px 0;
-  }
-  .item-form textarea{resize:vertical;}
-  .recipe-check{
-    display:inline-flex;align-items:center;gap:5px;background:var(--stone);
-    border:1px solid var(--stone-line);border-radius:12px;padding:4px 10px 4px 6px;
-    font-size:0.78rem;cursor:pointer;color:var(--ink-dim);user-select:none;
-  }
-  .recipe-check svg{width:16px;height:16px;}
-  .recipe-check.on{border-color:var(--fjord);color:var(--fjord);background:#1c3530;}
 
   .crafted-list{margin-top:10px;}
   .crafted-item{
@@ -363,7 +338,7 @@
   <section id="tab-transform" class="tabpane" style="display:none">
     <div class="panel">
       <h2>Transform Runes</h2>
-      <p class="lede">Destroy a set of runes whose combined value is <em>greater than or equal to</em> your target rune's value, and it forges the target for you. Combine one of every ordinary rune to forge a <span style="color:var(--god);">God Rune</span> instead.</p>
+      <p class="lede">Destroy a set of runes whose combined value is <em>greater than or equal to</em> your target rune's value, and Mr. Sasha will forge the target for you.</p>
       <h3 style="font-size:0.9rem;color:var(--ink-dim);margin-bottom:8px;">1 &middot; Choose a target rune</h3>
       <div class="target-row" id="targetRow"></div>
       <div id="transformBody"></div>
@@ -436,10 +411,13 @@
       </div>
 
       <div class="panel">
-        <div class="row between"><h2>Manage Items</h2><button class="btn small" id="addItemBtn">+ Add New Item</button></div>
-        <p class="lede">Add, edit, hide, or delete runewords. Hidden items stop showing up in Craft and the Codex, but stay listed here — students who already crafted one keep it either way. God Runes are no longer granted by hand here; students forge them under the Transform tab by combining one of every ordinary rune.</p>
-        <div id="itemFormWrap" style="display:none;"></div>
-        <div id="itemsAdminList"></div>
+        <h2>Grant a God Rune</h2>
+        <p class="lede">God Runes aren't earned by rolling — award one by hand for a major campaign milestone.</p>
+        <div class="row">
+          <input type="text" id="godRuneStudent" placeholder="Student name" style="width:200px;">
+          <button class="btn" id="grantGodBtn">Grant God Rune</button>
+        </div>
+        <div id="grantGodMsg"></div>
       </div>
 
       <div class="panel">
@@ -529,12 +507,86 @@
     GOD:   "M30 6 L34 22 L50 22 L37 32 L42 48 L30 38 L18 48 L23 32 L10 22 L26 22 Z",
   };
 
-  // Runewords used to be hardcoded here, duplicated by hand in Code.gs.
-  // They're now fetched from the backend (which reads them from the
-  // "Runewords" sheet tab) on load via loadRunewords(), so the teacher can
-  // add/edit/hide/delete items from the Teacher tab without ever touching
-  // this file. This starts empty and is populated before the first render.
-  let RUNEWORDS = [];
+  const RUNEWORDS = [
+    {id:"enigma", name:"Enigma", slot:"Chest Armor", recipe:["BER","NEF","THUL","ORT"],
+      effect:"Once per long rest, cast Teleport on yourself.",
+      quote:"It's a riddle wrapped in a mystery inside an enigma…"},
+    {id:"cling", name:"Cling", slot:"Gloves", recipe:["IO","NEF","ITH"],
+      effect:"Once per long rest, firmly attach your gloves to an object for 30 minutes. Passively +2 to Sleight of Hand checks.",
+      quote:"Loss of loving connection is coded by the human brain into a primal panic response."},
+    {id:"prism", name:"Prism", slot:"Necklace", recipe:["TIR","NEF","TAL"],
+      effect:"Once per long rest, change your eye colour until you use it again.",
+      quote:"Life is a painting, and you are the artist."},
+    {id:"rizz", name:"Silver Tongue of Rizz", slot:"Eyewear", recipe:["SHAEL","IO"],
+      effect:"Once per long rest, add 1d10 to a single Charisma-based check.",
+      quote:"One man's ways may be as good as another's, but we all like our own best."},
+    {id:"quicksilver", name:"Quicksilver", slot:"Harness / Bridle", recipe:["LUM","ORT","ITH"],
+      effect:"Any mount wearing this has its move speed doubled.",
+      quote:"Faster, faster, until the thrill of speed overcomes the fear of death."},
+    {id:"charger", name:"Charger", slot:"Harness / Bridle", recipe:["BER","THUL","TAL","SHAEL"],
+      effect:"When attached to a mount, the rider cannot be knocked off.",
+      quote:"When you have exhausted all possibilities, remember this: you haven't."},
+    {id:"precious", name:"Precious", slot:"Ring", recipe:["ZOD","LUM","THUL"],
+      effect:"Once per long rest, cast Invisibility on yourself. Each combat turn, roll a d20 — a 7 or less adds a Short-Term Madness effect for the fight.",
+      quote:"What makes something precious? Losing and finding it."},
+    {id:"hive", name:"Hive", slot:"Boots", recipe:["BER","LUM","ORT","ITH"],
+      effect:"Once per long rest, shrink to the size of an ant for 3 minutes.",
+      quote:"People, chained by monotony, afraid to think, clinging to certainties... they live like ants."},
+    {id:"starboard", name:"Starboard", slot:"Oar / Paddle", recipe:["IO","NEF","TIR"],
+      effect:"Once per day, discharge lightning into water within 30 feet. Targets: DC15 Con save, [caster level]d8 damage, half on success.",
+      quote:"What is a soul? It's like electricity - we don't really know what it is, but it's a force that can light the world."},
+    {id:"carotene", name:"Blade of Carotene", slot:"Sword", recipe:["IO","NEF","TIR"],
+      effect:"A sword of carrots. Grants Darkvision. Crits on 19 or 20 in the dark, plus 2d6 extra damage in the dark.",
+      quote:""},
+    {id:"folly", name:"Folly", slot:"Scarf", recipe:["ZOD","SHAEL","ORT"],
+      effect:"Increases Strength to 666,666 for one second — then you instantly die.",
+      quote:"Man's wisdom is his best friend; folly his worst enemy."},
+    {id:"insolence", name:"Insolence", slot:"Weapon", recipe:["LUM","SHAEL","ORT","TAL"],
+      effect:"Three times per long rest, gain advantage on attacks against characters over 150 years old.",
+      quote:"Youth is insolent; it is its right – its necessity; all assertion in this world of doubts is a defiance, is an insolence…"},
+    {id:"sage", name:"Sage", slot:"Earrings", recipe:["TIR","NEF","ORT","SHAEL"],
+      effect:"Once per day, understand (but not speak) the language of animals for 3 minutes.",
+      quote:"The wise understand that knowing animals allows us to better know ourselves."},
+    {id:"lark", name:"Lark", slot:"Scarf", recipe:["ITH","TAL","THUL","IO"],
+      effect:"Once per day, speak to (but not understand) animals for 3 minutes.",
+      quote:"I may look normal, but believe me, I talk to animals and wait for them to reply."},
+    {id:"inferno", name:"Inferno", slot:"Dish", recipe:["ZOD","IO","THUL"],
+      effect:"Once per long rest, whoever eats from this dish can cast Dragon's Breath — DC15 Con save or 2d6 fire damage.",
+      quote:"I may look normal, but believe me, I talk to animals and wait for them to reply."},
+    {id:"socks", name:"Socks of Blocks", slot:"Socks", recipe:["ZOD","JAH","IO","TAL"],
+      effect:"Once per long rest, convert an item smaller than a microwave into brick-sized, reassemblable blocks for 1 hour.",
+      quote:"Socks of blocks and blocks of socks."},
+    {id:"north", name:"Invigorated by the North", slot:"Pendant / Necklace", recipe:["LUM","SHAEL","TAL"],
+      effect:"In cold environments, you take no exhaustion.",
+      quote:"Brrr, it's NOT cold in here."},
+    {id:"bramble", name:"Bramble", slot:"Leg Armor", recipe:["SHAEL","ORT","NEF","TIR"],
+      effect:"Attackers who strike you take 1d4 piercing damage. Once per day, cast Entangle.",
+      quote:"Just like the dead limbs and overgrowth of trees, it is superfluous. Let it all go."},
+    {id:"crescent", name:"Crescent Moon", slot:"Musical Instrument", recipe:["BER","SHAEL","TAL","ITH"],
+      effect:"Once per long rest, cast Summon Spirit Wolf.",
+      quote:"For the strength of the pack is the wolf. And the strength of the wolf is the pack."},
+    {id:"harmony", name:"Harmony", slot:"Head Armor", recipe:["LUM","IO","TAL","TIR"],
+      effect:"Once per long rest, cast Mass Healing Word on targets of your choosing.",
+      quote:"Music doesn't get in. Music is already in. Music simply uncovers what is there."},
+    {id:"summarmaekir", name:"Summarmækir", slot:"Weapon", recipe:["GOD","ZOD","JAH","IO"],
+      effect:"+3 sword. Can be thrown and guided (+½ exhaustion to the thrower on a hit). Once per long rest, cast Sunburst.",
+      quote:"Yes, child, this weapon WAS held by the god Frey. It warms the wielder like a Summer's day."},
+    {id:"ransnet", name:"Ran's Net", slot:"Weapon", recipe:["GOD","BER","LUM","SHAEL"],
+      effect:"Once per day, cast a magic net on a target (DC20 Dex save to escape). Each turn restrained, the target suffers Vampiric Touch before acting.",
+      quote:"Ethical fishing at its finest. — Senlin"},
+    {id:"herofeller", name:"Herofeller", slot:"Scabbard", recipe:["TIR","TAL","ORT","IO"],
+      effect:"The first attack with a weapon drawn from this scabbard deals an extra 1d4 poison damage for 10 turns. Refills on a long rest.",
+      quote:"This doesn't feel sanitary."},
+    {id:"coolth", name:"Coolth", slot:"Pillow", recipe:["TIR","THUL","SHAEL","LUM"],
+      effect:"Perpetually cold on both sides. Once per 3 days, treat a short rest as a long rest.",
+      quote:"I may look normal, but believe me, I talk to animals and wait for them to reply."},
+    {id:"misfortune", name:"Amulet of Misfortune", slot:"Necklace", recipe:["TIR","SHAEL","THUL","NEF"],
+      effect:"Once per long rest, create a blazing light and cast Light Binding.",
+      quote:"I saw the light, I saw the light. No more darkness, no more night."},
+    {id:"stuffed", name:"Stuffed Buddy", slot:"Doll", recipe:["ITH","NEF","THUL","IO"],
+      effect:"Tuck this doll in for 3 nights running with your runes inside — it wakes as your familiar.",
+      quote:"Who's my lil guy? Who's my lil' buddy?"},
+  ];
   const SOUR_KEY_BASE = ["SHAEL","IO","JAH","BER"];
   const SOUR_KEY_SIZES = [
     {label:"Small (2d6, ×1)", mult:1},
@@ -563,17 +615,6 @@
     const json = await res.json();
     if(!json.ok) throw new Error(json.error || "Unknown server error.");
     return json.data;
-  }
-
-  // Pulls the current runeword catalog from the backend (Runewords sheet).
-  // Call this again after any teacher add/edit/hide/delete so Craft and
-  // Codex reflect the change without a page reload.
-  async function loadRunewords(){
-    try{
-      RUNEWORDS = await api("getRunewords", {});
-    }catch(e){
-      RUNEWORDS = [];
-    }
   }
 
   async function checkConnection(){
@@ -835,15 +876,11 @@
 
   function renderTargetRow(){
     const row = document.getElementById("targetRow");
-    const runeTiles = RUNES.map(r=>{
+    row.innerHTML = RUNES.map(r=>{
       return `<div class="target-pick ${transformTarget===r.code?'active':''}" data-code="${r.code}">
         ${glyphSVG(r.code)}<span>${r.code} · ${r.points}pt</span>
       </div>`;
     }).join("");
-    const godTile = `<div class="target-pick god-target ${transformTarget==='GOD'?'active':''}" data-code="GOD">
-      ${glyphSVG('GOD')}<span>God Rune</span>
-    </div>`;
-    row.innerHTML = runeTiles + godTile;
     row.querySelectorAll(".target-pick").forEach(el=>{
       el.addEventListener("click", ()=>{
         transformTarget = el.dataset.code;
@@ -851,55 +888,6 @@
         renderTransform();
       });
     });
-  }
-
-  // God Runes use a fixed recipe (one of every ordinary rune) rather than
-  // the point-value trade every other rune uses, so this gets its own
-  // small UI instead of reusing the stepper rows below.
-  function renderGodTransform(student){
-    const body = document.getElementById("transformBody");
-    let allHave = true;
-    const chips = RUNES.map(r=>{
-      const owned = student.inventory[r.code]||0;
-      const have = owned >= 1;
-      if(!have) allHave = false;
-      return `<span class="req-chip ${have?'have':'missing'}">${glyphSVG(r.code)} ${r.code}</span>`;
-    }).join("");
-
-    body.innerHTML = `
-      <h3 style="font-size:0.9rem;color:var(--ink-dim);margin:18px 0 4px;">2 &middot; Gather one of every ordinary rune</h3>
-      <p class="lede" style="margin-bottom:14px;">Forging a God Rune destroys exactly one TIR, ITH, NEF, TAL, ORT, THUL, SHAEL, IO, LUM, JAH, BER, and ZOD, all at once.</p>
-      <div class="recipe" style="margin-bottom:16px;">${chips}</div>
-      <div class="row between">
-        <span style="color:${allHave?'var(--fjord)':'var(--ink-dim)'};font-family:'Cinzel',serif;font-size:0.85rem;">${allHave?'Ready to forge':'Missing one or more runes above'}</span>
-        <button class="btn" id="doGodTransformBtn" ${allHave?'':'disabled'}>Forge a God Rune</button>
-      </div>
-      <div id="transformMsg"></div>
-    `;
-
-    const btn = document.getElementById("doGodTransformBtn");
-    if(btn){
-      btn.addEventListener("click", async ()=>{
-        const name = currentName();
-        const authPin = await ensureUnlocked(name);
-        if(!authPin) return;
-        btn.disabled = true;
-        const msgEl = document.getElementById("transformMsg");
-        msgEl.innerHTML = `<div class="msg info">Forging…</div>`;
-        const selection = {};
-        RUNES.forEach(r=>{ selection[r.code] = 1; });
-        try{
-          const updated = await api("transform", {name, target:"GOD", selection, authPin});
-          studentCache = updated;
-          msgEl.innerHTML = `<div class="msg success">Forged a God Rune!</div>`;
-          renderTransform();
-          renderInventory();
-        }catch(err){
-          msgEl.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
-          btn.disabled = false;
-        }
-      });
-    }
   }
 
   async function renderTransform(){
@@ -914,8 +902,6 @@
     try{ student = await loadStudent(); }
     catch(err){ body.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`; return; }
     if(!student) return;
-
-    if(transformTarget === "GOD"){ renderGodTransform(student); return; }
 
     const targetPts = RUNE_MAP[transformTarget].points;
     let total = 0;
@@ -983,14 +969,6 @@
   }
 
   /* ============ CRAFT ============ */
-  // Teacher-uploaded photos are stored as a data: URI straight from the
-  // Runewords sheet. Items seeded from the original built-in catalog have
-  // no stored photo, so those fall back to the old convention of a local
-  // images/<id>.png file sitting next to this page.
-  function itemImageSrc(item){
-    return (item.image && item.image.indexOf("data:") === 0) ? item.image : `images/${item.id}.png`;
-  }
-
   function needsFor(recipe){
     const need = {};
     recipe.forEach(c => need[c] = (need[c]||0)+1);
@@ -1023,7 +1001,7 @@
     grid.innerHTML = cards.map(({item,can,chips})=>`
       <div class="item-card ${can?'craftable':''}" data-id="${item.id}">
         <div class="item-img-container">
-          <img src="${itemImageSrc(item)}" alt="${item.name}" loading="lazy" onerror="this.style.display='none'">
+          <img src="images/${item.id}.png" alt="${item.name}" loading="lazy">
         </div>
         <div class="head"><span class="name">${item.name}</span><span class="slot">${item.slot}</span></div>
         <div class="effect">${item.effect}</div>
@@ -1108,13 +1086,9 @@
   /* ============ CODEX ============ */
   function renderCodex(){
     const rt = document.getElementById("codexTable");
-    const runeRows = RUNES.map(r=>`
+    rt.innerHTML = RUNES.map(r=>`
       <tr><td><div class="row" style="gap:8px;"><div class="rune-stone" style="width:32px;height:32px;">${glyphSVG(r.code)}</div>${r.code}</div></td><td>${r.prob}%</td><td>${r.points} pts</td></tr>
     `).join("");
-    const godRow = `
-      <tr><td><div class="row" style="gap:8px;"><div class="rune-stone god" style="width:32px;height:32px;">${glyphSVG('GOD')}</div>GOD</div></td><td>—</td><td>Forge: 1 of each rune</td></tr>
-    `;
-    rt.innerHTML = runeRows + godRow;
 
     const ct = document.getElementById("compendiumTable");
     const rows = RUNEWORDS.map(i=>`<tr><td>${i.name}</td><td>${i.slot}</td><td>${i.recipe.join(" + ")}</td></tr>`);
@@ -1164,6 +1138,23 @@
       renderTeacherPins();
     }catch(err){
       disp.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
+    }
+  });
+
+  document.getElementById("grantGodBtn").addEventListener("click", async ()=>{
+    const nameEl = document.getElementById("godRuneStudent");
+    const target = nameEl.value.trim();
+    const msg = document.getElementById("grantGodMsg");
+    if(!target){ msg.innerHTML = `<div class="msg error">Enter a student name.</div>`; return; }
+    msg.innerHTML = `<div class="msg info">Granting…</div>`;
+    try{
+      await api("teacherGrantGod", {pass: teacherPass(), name: target});
+      msg.innerHTML = `<div class="msg success">Granted a God Rune to ${escapeHTML(target)}.</div>`;
+      nameEl.value = "";
+      if(target.toLowerCase() === currentName().toLowerCase()) studentCache = null;
+      renderTeacherStudents();
+    }catch(err){
+      msg.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
     }
   });
 
@@ -1226,235 +1217,6 @@
     }
   });
 
-  /* ============ TEACHER: Manage Items ============ */
-  // All 13 possible recipe ingredients: the twelve ordinary runes plus GOD
-  // (Summarmækir and Ran's Net both call for a God Rune in their recipe).
-  const RECIPE_CODES = [...RUNES.map(r=>r.code), "GOD"];
-
-  let itemsAdminCache = [];
-  let itemFormEditingId = null; // null = "add new" mode
-  let itemFormImage = null;     // pending data: URI from a file picker, or null to leave unchanged
-
-  // Shrinks and JPEG-compresses an uploaded photo client-side so it fits
-  // safely inside a Google Sheets cell (~50,000 character limit) before it
-  // ever reaches the backend.
-  function resizeImageFile(file){
-    return new Promise((resolve, reject)=>{
-      const reader = new FileReader();
-      reader.onload = ()=>{
-        const img = new Image();
-        img.onload = ()=>{
-          const maxDim = 480;
-          let w = img.width, h = img.height;
-          if(w > h && w > maxDim){ h = Math.round(h * maxDim / w); w = maxDim; }
-          else if(h >= w && h > maxDim){ w = Math.round(w * maxDim / h); h = maxDim; }
-          const canvas = document.createElement("canvas");
-          canvas.width = w; canvas.height = h;
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, w, h);
-          let quality = 0.78;
-          let dataUrl = canvas.toDataURL("image/jpeg", quality);
-          const limit = 42000; // buffer under the backend's 45,000-char cap
-          while(dataUrl.length > limit && quality > 0.35){
-            quality -= 0.1;
-            dataUrl = canvas.toDataURL("image/jpeg", quality);
-          }
-          if(dataUrl.length > limit){
-            const scale = Math.sqrt(limit / dataUrl.length);
-            const w2 = Math.max(60, Math.round(w * scale));
-            const h2 = Math.max(60, Math.round(h * scale));
-            canvas.width = w2; canvas.height = h2;
-            ctx.drawImage(img, 0, 0, w2, h2);
-            dataUrl = canvas.toDataURL("image/jpeg", 0.6);
-          }
-          resolve(dataUrl);
-        };
-        img.onerror = ()=>reject(new Error("Couldn't read that image file."));
-        img.src = reader.result;
-      };
-      reader.onerror = ()=>reject(new Error("Couldn't read that file."));
-      reader.readAsDataURL(file);
-    });
-  }
-
-  async function renderTeacherItems(){
-    const list = document.getElementById("itemsAdminList");
-    list.innerHTML = `<p class="lede">Loading…</p>`;
-    try{
-      itemsAdminCache = await api("teacherListRunewords", {pass: teacherPass()});
-    }catch(err){
-      list.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
-      return;
-    }
-    if(!itemsAdminCache.length){
-      list.innerHTML = `<p class="lede">No items yet — click "+ Add New Item" above.</p>`;
-      return;
-    }
-    list.innerHTML = itemsAdminCache.map(item=>{
-      const recipeStr = item.recipe.join(" + ");
-      const imgSrc = itemImageSrc(item);
-      return `
-      <div class="admin-item-row ${item.hidden?'hidden-item':''}">
-        <div class="item-img-container admin-item-thumb"><img src="${imgSrc}" alt="${escapeHTML(item.name)}" onerror="this.style.display='none'"></div>
-        <div class="admin-item-info">
-          <div class="name">${escapeHTML(item.name)} ${item.hidden?'<span class="tag">hidden</span>':''}</div>
-          <div class="meta">${escapeHTML(item.slot)} &middot; ${escapeHTML(recipeStr)}</div>
-        </div>
-        <div class="row" style="gap:6px;">
-          <button class="btn small ghost" data-edit-item="${item.id}">Edit</button>
-          <button class="btn small ghost" data-toggle-item="${item.id}">${item.hidden?'Show':'Hide'}</button>
-          <button class="btn small danger" data-delete-item="${item.id}">Delete</button>
-        </div>
-      </div>`;
-    }).join("");
-  }
-
-  document.getElementById("itemsAdminList").addEventListener("click", async e=>{
-    const editBtn = e.target.closest("[data-edit-item]");
-    const toggleBtn = e.target.closest("[data-toggle-item]");
-    const deleteBtn = e.target.closest("[data-delete-item]");
-    if(editBtn){
-      const item = itemsAdminCache.find(i=>i.id===editBtn.dataset.editItem);
-      if(item) openItemForm(item);
-      return;
-    }
-    if(toggleBtn){
-      const id = toggleBtn.dataset.toggleItem;
-      const item = itemsAdminCache.find(i=>i.id===id);
-      if(!item) return;
-      try{
-        await api("teacherSetRunewordHidden", {pass: teacherPass(), id, hidden: !item.hidden});
-        await loadRunewords();
-        renderTeacherItems();
-        renderCraft();
-        renderCodex();
-      }catch(err){ alert(err.message); }
-      return;
-    }
-    if(deleteBtn){
-      const id = deleteBtn.dataset.deleteItem;
-      const item = itemsAdminCache.find(i=>i.id===id);
-      if(!item) return;
-      if(!confirm(`Permanently delete "${item.name}"? Students who already crafted it keep it, but no one can craft it again. This cannot be undone.`)) return;
-      try{
-        await api("teacherDeleteRuneword", {pass: teacherPass(), id});
-        await loadRunewords();
-        renderTeacherItems();
-        renderCraft();
-        renderCodex();
-      }catch(err){ alert(err.message); }
-      return;
-    }
-  });
-
-  document.getElementById("addItemBtn").addEventListener("click", ()=>{
-    const wrap = document.getElementById("itemFormWrap");
-    const isOpenForAdd = wrap.style.display !== "none" && itemFormEditingId === null;
-    if(isOpenForAdd){ closeItemForm(); } else { openItemForm(null); }
-  });
-
-  function closeItemForm(){
-    document.getElementById("itemFormWrap").style.display = "none";
-    document.getElementById("itemFormWrap").innerHTML = "";
-    itemFormEditingId = null;
-    itemFormImage = null;
-  }
-
-  function openItemForm(item){
-    itemFormEditingId = item ? item.id : null;
-    itemFormImage = null;
-    const wrap = document.getElementById("itemFormWrap");
-    const recipeSet = new Set(item ? item.recipe : []);
-    const chipsHTML = RECIPE_CODES.map(code=>{
-      const on = recipeSet.has(code);
-      return `<label class="recipe-check ${on?'on':''}" data-code="${code}">
-        <input type="checkbox" value="${code}" ${on?'checked':''} style="display:none;">
-        ${glyphSVG(code)}<span>${code}</span>
-      </label>`;
-    }).join("");
-    const imgSrc = item ? itemImageSrc(item) : "";
-
-    wrap.innerHTML = `
-      <div class="item-form">
-        <h3 style="font-size:0.95rem;color:var(--ink);margin-bottom:10px;">${item?'Edit item':'Add a new item'}</h3>
-        <div class="row" style="gap:12px;align-items:start;flex-wrap:wrap;">
-          <div style="flex:1;min-width:220px;">
-            <div class="field"><label>Name</label><input type="text" id="itemFormName" style="width:100%;" value="${item?escapeHTML(item.name):''}"></div>
-            <div class="field" style="margin-top:10px;"><label>Slot (e.g. Ring, Boots, Weapon)</label><input type="text" id="itemFormSlot" style="width:100%;" value="${item?escapeHTML(item.slot):''}"></div>
-            <div class="field" style="margin-top:10px;"><label>Description / effect</label><textarea id="itemFormEffect" rows="3" style="width:100%;background:var(--stone);border:1px solid var(--stone-line);color:var(--ink);border-radius:var(--radius);padding:9px 11px;font-family:'Spectral',serif;">${item?escapeHTML(item.effect):''}</textarea></div>
-            <div class="field" style="margin-top:10px;"><label>Flavor quote (optional)</label><input type="text" id="itemFormQuote" style="width:100%;" value="${item?escapeHTML(item.quote):''}"></div>
-          </div>
-          <div style="width:180px;">
-            <label style="display:block;font-size:0.72rem;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;">Photo</label>
-            <div class="item-img-container" id="itemFormImgPreview" style="height:110px;">${imgSrc?`<img src="${imgSrc}" alt="">`:'<span style="color:var(--ink-faint);font-size:0.75rem;">No photo</span>'}</div>
-            <input type="file" id="itemFormPhoto" accept="image/*" style="margin-top:8px;font-size:0.78rem;">
-          </div>
-        </div>
-        <div class="field" style="margin-top:14px;">
-          <label>Recipe — click the runes this item requires</label>
-          <div class="recipe" style="margin-top:6px;">${chipsHTML}</div>
-        </div>
-        <div class="row" style="margin-top:16px;gap:10px;">
-          <button class="btn" id="itemFormSaveBtn">${item?'Save Changes':'Add Item'}</button>
-          <button class="btn ghost" id="itemFormCancelBtn">Cancel</button>
-        </div>
-        <div id="itemFormMsg"></div>
-      </div>
-    `;
-    wrap.style.display = "block";
-
-    wrap.querySelectorAll(".recipe-check").forEach(el=>{
-      el.addEventListener("click", ()=>{
-        el.classList.toggle("on");
-        el.querySelector("input").checked = el.classList.contains("on");
-      });
-    });
-
-    document.getElementById("itemFormPhoto").addEventListener("change", async (e)=>{
-      const file = e.target.files[0];
-      if(!file) return;
-      const preview = document.getElementById("itemFormImgPreview");
-      preview.innerHTML = `<span style="color:var(--ink-faint);font-size:0.75rem;">Processing…</span>`;
-      try{
-        itemFormImage = await resizeImageFile(file);
-        preview.innerHTML = `<img src="${itemFormImage}" alt="">`;
-      }catch(err){
-        preview.innerHTML = `<span style="color:var(--blood);font-size:0.75rem;">${escapeHTML(err.message)}</span>`;
-      }
-    });
-
-    document.getElementById("itemFormCancelBtn").addEventListener("click", closeItemForm);
-
-    document.getElementById("itemFormSaveBtn").addEventListener("click", async ()=>{
-      const msgEl = document.getElementById("itemFormMsg");
-      const name = document.getElementById("itemFormName").value.trim();
-      const slot = document.getElementById("itemFormSlot").value.trim();
-      const effect = document.getElementById("itemFormEffect").value.trim();
-      const quote = document.getElementById("itemFormQuote").value.trim();
-      const recipe = [...wrap.querySelectorAll(".recipe-check.on")].map(el=>el.dataset.code);
-      if(!name){ msgEl.innerHTML = `<div class="msg error">Give the item a name.</div>`; return; }
-      if(!slot){ msgEl.innerHTML = `<div class="msg error">Give the item a slot.</div>`; return; }
-      if(!recipe.length){ msgEl.innerHTML = `<div class="msg error">Pick at least one rune for the recipe.</div>`; return; }
-      msgEl.innerHTML = `<div class="msg info">Saving…</div>`;
-      const payload = {name, slot, effect, quote, recipe};
-      if(itemFormImage !== null) payload.image = itemFormImage;
-      try{
-        if(itemFormEditingId){
-          await api("teacherEditRuneword", {pass: teacherPass(), id: itemFormEditingId, ...payload});
-        } else {
-          await api("teacherAddRuneword", {pass: teacherPass(), ...payload});
-        }
-        closeItemForm();
-        await loadRunewords();
-        renderTeacherItems();
-        renderCraft();
-        renderCodex();
-      }catch(err){
-        msgEl.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
-      }
-    });
-  }
-
   function renderTeacher(){
     const unlocked = isTeacherUnlocked();
     document.getElementById("teacherLockPanel").style.display = unlocked ? "none" : "block";
@@ -1462,7 +1224,6 @@
     if(!unlocked) return;
     renderTeacherPins();
     renderTeacherStudents();
-    renderTeacherItems();
   }
 
   /* ============ util ============ */
@@ -1480,7 +1241,7 @@
 
   checkConnection();
   updateLockIcon();
-  loadRunewords().then(renderAll);
+  renderAll();
 })();
 </script>
 </body>
