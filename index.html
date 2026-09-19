@@ -55,7 +55,9 @@
     max-width:980px;margin:0 auto;flex-wrap:wrap;
   }
   .brand{display:flex;align-items:center;gap:14px;flex:1;min-width:220px;}
-  .brand svg{flex-shrink:0;filter:drop-shadow(0 0 6px #d3a34e55);}
+  .logo-wrap{width:46px;height:46px;flex-shrink:0;display:inline-block;filter:drop-shadow(0 0 6px #d3a34e55);}
+  .logo-wrap svg{width:100%;height:100%;display:block;}
+  .logo-wrap img{width:100%;height:100%;display:block;object-fit:fill;border-radius:6px;}
   .brand-text h1{font-size:1.5rem;color:var(--ink);}
   .brand-text p{margin:2px 0 0;color:var(--ink-faint);font-size:0.82rem;}
 
@@ -299,7 +301,10 @@
 
 <header class="top">
   <div class="brand">
-    <svg width="46" height="46" viewBox="0 0 60 60"><polygon points="9,3 51,3 58,57 2,57" fill="#2b3346" stroke="#d3a34e" stroke-width="1.5"/><path d="M22 42 L30 12 L38 42 M25 30 L35 30" stroke="#eec27a" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+    <span class="logo-wrap" id="logoWrap">
+      <svg id="defaultLogoSvg" width="46" height="46" viewBox="0 0 60 60"><polygon points="9,3 51,3 58,57 2,57" fill="#2b3346" stroke="#d3a34e" stroke-width="1.5"/><path d="M22 42 L30 12 L38 42 M25 30 L35 30" stroke="#eec27a" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+      <img id="customLogoImg" alt="Site logo" style="display:none;">
+    </span>
     <div class="brand-text">
       <h1>The Runic System</h1>
       <p>Twelve Runes of Ran &middot; </p>
@@ -459,6 +464,22 @@
         </div>
         <div id="powerWordSetMsg"></div>
         <div id="powerWordStatus" style="margin-top:14px;"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Site Logo</h2>
+        <p class="lede">Replace the emblem in the top-left corner for every visitor. Accepts JPEG, PNG, BMP, WEBP, or GIF — it's automatically scaled/stretched to fit the logo's box, and stays live until you or another teacher change or reset it.</p>
+        <div class="row" style="gap:16px;align-items:center;flex-wrap:wrap;">
+          <span class="logo-wrap" id="logoPreviewWrap" style="width:64px;height:64px;">
+            <img id="logoPreviewImg" alt="Current logo" style="display:none;">
+          </span>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <input type="file" id="logoFileInput" accept="image/jpeg,image/png,image/bmp,image/webp,image/gif" style="max-width:240px;">
+            <button class="btn" id="uploadLogoBtn">Upload</button>
+            <button class="btn ghost small" id="resetLogoBtn">Reset to Default</button>
+          </div>
+        </div>
+        <div id="logoMsg" style="margin-top:10px;"></div>
       </div>
 
       <div class="panel">
@@ -1279,6 +1300,114 @@
     }
   }
 
+  /* ---- Site Logo (teacher: upload + reset) ---- */
+  function applyLogo(dataUri){
+    const svg = document.getElementById("defaultLogoSvg");
+    const img = document.getElementById("customLogoImg");
+    const previewImg = document.getElementById("logoPreviewImg");
+    if(dataUri){
+      img.src = dataUri; img.style.display = "block"; svg.style.display = "none";
+      if(previewImg){ previewImg.src = dataUri; previewImg.style.display = "block"; }
+    } else {
+      img.style.display = "none"; svg.style.display = "block"; img.removeAttribute("src");
+      if(previewImg){ previewImg.style.display = "none"; previewImg.removeAttribute("src"); }
+    }
+  }
+
+  // Public, no-auth: every visitor calls this on load so everyone sees
+  // whatever the teacher last uploaded (or the default glyph if unset).
+  async function loadLogo(){
+    try{
+      const res = await api("getLogo", {});
+      applyLogo(res.image || "");
+    }catch(e){ /* keep whatever is currently shown */ }
+  }
+
+  const LOGO_ALLOWED_TYPES = ["image/jpeg","image/jpg","image/png","image/bmp","image/webp","image/gif"];
+
+  // Reads the chosen file as-is (preserving format, and GIF animation)
+  // when it already fits under the backend's Sheet-cell size cap; only
+  // falls back to resizing/re-encoding as JPEG when it doesn't. Stretching
+  // to the logo's box happens automatically via CSS (object-fit: fill) —
+  // the original aspect ratio doesn't need to be preserved here.
+  function prepareLogoFile(file){
+    return new Promise((resolve, reject)=>{
+      if(!file){ reject(new Error("Choose a file first.")); return; }
+      if(LOGO_ALLOWED_TYPES.indexOf(file.type) === -1){
+        reject(new Error("Please choose a JPEG, PNG, BMP, WEBP, or GIF file.")); return;
+      }
+      const limit = 42000; // buffer under the backend's 45,000-char cap
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        const raw = reader.result;
+        if(raw.length <= limit){ resolve(raw); return; }
+        if(file.type === "image/gif"){
+          reject(new Error("That GIF is too large even uncompressed, and animated GIFs can't be safely re-compressed. Try a smaller or shorter GIF."));
+          return;
+        }
+        const img = new Image();
+        img.onload = ()=>{
+          const maxDim = 300;
+          let w = img.width, h = img.height;
+          if(w > h && w > maxDim){ h = Math.round(h * maxDim / w); w = maxDim; }
+          else if(h >= w && h > maxDim){ w = Math.round(w * maxDim / h); h = maxDim; }
+          const canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, w, h);
+          let quality = 0.8;
+          let dataUrl = canvas.toDataURL("image/jpeg", quality);
+          while(dataUrl.length > limit && quality > 0.35){
+            quality -= 0.1;
+            dataUrl = canvas.toDataURL("image/jpeg", quality);
+          }
+          if(dataUrl.length > limit){
+            const scale = Math.sqrt(limit / dataUrl.length);
+            const w2 = Math.max(40, Math.round(w * scale));
+            const h2 = Math.max(40, Math.round(h * scale));
+            canvas.width = w2; canvas.height = h2;
+            ctx.drawImage(img, 0, 0, w2, h2);
+            dataUrl = canvas.toDataURL("image/jpeg", 0.6);
+          }
+          resolve(dataUrl);
+        };
+        img.onerror = ()=>reject(new Error("Couldn't read that image file."));
+        img.src = raw;
+      };
+      reader.onerror = ()=>reject(new Error("Couldn't read that file."));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  document.getElementById("uploadLogoBtn").addEventListener("click", async ()=>{
+    const msg = document.getElementById("logoMsg");
+    const fileInput = document.getElementById("logoFileInput");
+    const file = fileInput.files && fileInput.files[0];
+    if(!file){ msg.innerHTML = `<div class="msg error">Choose a file first.</div>`; return; }
+    msg.innerHTML = `<div class="msg info">Uploading…</div>`;
+    try{
+      const dataUri = await prepareLogoFile(file);
+      const res = await api("teacherSetLogo", {pass: teacherPass(), image: dataUri});
+      applyLogo(res.image);
+      fileInput.value = "";
+      msg.innerHTML = `<div class="msg success">Logo updated for everyone.</div>`;
+    }catch(err){
+      msg.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
+    }
+  });
+
+  document.getElementById("resetLogoBtn").addEventListener("click", async ()=>{
+    const msg = document.getElementById("logoMsg");
+    msg.innerHTML = `<div class="msg info">Resetting…</div>`;
+    try{
+      await api("teacherClearLogo", {pass: teacherPass()});
+      applyLogo("");
+      msg.innerHTML = `<div class="msg success">Reverted to the default logo.</div>`;
+    }catch(err){
+      msg.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
+    }
+  });
+
   document.getElementById("resetAllBtn").addEventListener("click", async ()=>{
     if(!confirm("This will erase every student's runes, crafted items, and PIN history for the whole class. Continue?")) return;
     if(!confirm("Really sure? This cannot be undone.")) return;
@@ -1576,6 +1705,7 @@
     renderTeacherStudents();
     renderTeacherItems();
     renderPowerWordStatus();
+    loadLogo();
   }
 
   /* ============ util ============ */
@@ -1593,6 +1723,7 @@
 
   checkConnection();
   updateLockIcon();
+  loadLogo();
   loadRunewords().then(renderAll);
 })();
 </script>
