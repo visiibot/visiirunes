@@ -115,6 +115,8 @@
   .btn.ghost:hover{color:var(--ink);border-color:var(--ink-dim);}
   .btn.danger{background:#5c2a20;border-color:var(--blood);color:#ffe2da;}
   .btn.danger:hover{background:var(--blood);}
+  .btn.success{background:#2f6b62;border-color:var(--fjord);color:#eafffb;}
+  .btn.success:hover{background:var(--fjord);}
   .btn.small{padding:6px 12px;font-size:0.76rem;}
 
   input[type=text],input[type=password],input[type=number],select{
@@ -154,6 +156,7 @@
   .roll-form{display:flex;gap:10px;align-items:end;flex-wrap:wrap;}
   .field label{display:block;font-size:0.72rem;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;}
   .pin-input{letter-spacing:0.35em;font-size:1.3rem;width:170px;text-align:center;font-family:'Cinzel',serif;}
+  .word-input{letter-spacing:0.18em;font-size:1.15rem;width:220px;text-align:center;font-family:'Cinzel',serif;text-transform:uppercase;}
   .msg{margin-top:12px;font-size:0.88rem;padding:10px 12px;border-radius:var(--radius);}
   .msg.error{background:#3a1e1a;border:1px solid var(--blood);color:#ffcfc2;}
   .msg.success{background:#1c3530;border:1px solid var(--fjord);color:#c9ece5;}
@@ -331,6 +334,20 @@
   <!-- ROLL -->
   <section id="tab-roll" class="tabpane">
     <div class="panel">
+      <h2>Redeem a Power Word</h2>
+      <p class="lede">A Power Word is <strong>not</strong> the one-time Milestone Code below — it's a shared word Mr. Sasha sets for the <em>whole class</em> to reward a group win. Every adventurer can redeem it once each, and redeeming it rolls for <strong>one</strong> random rune (not three). Power Words expire 12 hours after your teacher creates them.</p>
+      <div class="roll-form">
+        <div class="field">
+          <label for="powerWordInput">Power Word</label>
+          <input type="text" id="powerWordInput" class="word-input" maxlength="12" autocomplete="off" placeholder="e.g. FIRESTORM">
+        </div>
+        <button class="btn success" id="powerWordBtn">Roll One Rune</button>
+      </div>
+      <div id="powerWordMsg"></div>
+      <div class="reveal-row" id="powerWordReveal"></div>
+    </div>
+
+    <div class="panel">
       <h2>Roll for Runes</h2>
       <p class="lede">Enter the six-digit milestone code Mr. Sasha gave you at your last quest milestone (not your personal PIN). Each code works once and grants three runes. You'll also be asked for your own 4-digit adventurer PIN, to prove these are your runes.</p>
       <div class="roll-form">
@@ -425,6 +442,23 @@
         <p class="lede">Create a new one-time six-digit code and read/write it on the board for a quest milestone. This is separate from each student's personal 4-digit PIN.</p>
         <button class="btn" id="genPinBtn">Generate Code</button>
         <div id="newPinDisplay"></div>
+      </div>
+
+      <div class="panel">
+        <div class="row between">
+          <h2>Set a Power Word</h2>
+          <button class="btn ghost small" id="refreshPowerWordBtn">Refresh</button>
+        </div>
+        <p class="lede">A Power Word rewards the <strong>whole class</strong> at once — set one word (3–12 characters) and any adventurer can redeem it on the Roll page for one random rune. It's separate from Milestone Codes, doesn't need a PIN list, and expires automatically 12 hours after you create it. Setting a new Power Word replaces whatever one is currently active.</p>
+        <div class="roll-form">
+          <div class="field">
+            <label for="powerWordSetInput">New Power Word</label>
+            <input type="text" id="powerWordSetInput" class="word-input" maxlength="12" autocomplete="off" placeholder="e.g. FIRESTORM">
+          </div>
+          <button class="btn" id="setPowerWordBtn">Set Power Word</button>
+        </div>
+        <div id="powerWordSetMsg"></div>
+        <div id="powerWordStatus" style="margin-top:14px;"></div>
       </div>
 
       <div class="panel">
@@ -788,6 +822,40 @@
       msgEl.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
     }finally{
       rollBtn.disabled = false;
+    }
+  });
+
+  /* ============ POWER WORD (redeem) ============ */
+  // Distinct from the Milestone Code above: one shared word for the whole
+  // class, redeemable once per adventurer, granting ONE random rune.
+  const powerWordBtn = document.getElementById("powerWordBtn");
+  const powerWordInput = document.getElementById("powerWordInput");
+  powerWordInput.addEventListener("input", ()=>{ powerWordInput.value = powerWordInput.value.toUpperCase().slice(0,12); });
+
+  powerWordBtn.addEventListener("click", async ()=>{
+    const msgEl = document.getElementById("powerWordMsg");
+    const revealEl = document.getElementById("powerWordReveal");
+    msgEl.innerHTML = ""; revealEl.innerHTML = "";
+    const name = currentName();
+    const word = powerWordInput.value.trim();
+    if(!name){ msgEl.innerHTML = `<div class="msg error">Enter your adventurer name up top first.</div>`; return; }
+    if(word.length < 3 || word.length > 12){ msgEl.innerHTML = `<div class="msg error">Power Words are 3–12 characters.</div>`; return; }
+    const authPin = await ensureUnlocked(name);
+    if(!authPin) return;
+    powerWordBtn.disabled = true;
+    msgEl.innerHTML = `<div class="msg info">Rolling…</div>`;
+    try{
+      const result = await api("redeemPowerWord", {name, word, authPin});
+      studentCache = result.student;
+      const r = RUNE_MAP[result.drawn];
+      msgEl.innerHTML = `<div class="msg success">One rune forged for ${escapeHTML(name)}!</div>`;
+      revealEl.innerHTML = `<div class="reveal-card">${glyphSVG(result.drawn)}<div class="name">${result.drawn}</div><div class="pts">${r.points} pts</div></div>`;
+      powerWordInput.value = "";
+      renderAll();
+    }catch(err){
+      msgEl.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
+    }finally{
+      powerWordBtn.disabled = false;
     }
   });
 
@@ -1167,6 +1235,50 @@
     }
   });
 
+  /* ---- Power Word (teacher: set + status) ---- */
+  const powerWordSetInput = document.getElementById("powerWordSetInput");
+  powerWordSetInput.addEventListener("input", ()=>{ powerWordSetInput.value = powerWordSetInput.value.toUpperCase().slice(0,12); });
+
+  document.getElementById("setPowerWordBtn").addEventListener("click", async ()=>{
+    const msg = document.getElementById("powerWordSetMsg");
+    const word = powerWordSetInput.value.trim();
+    if(word.length < 3 || word.length > 12){ msg.innerHTML = `<div class="msg error">Power Words are 3–12 characters.</div>`; return; }
+    msg.innerHTML = `<div class="msg info">Setting…</div>`;
+    try{
+      await api("teacherSetPowerWord", {pass: teacherPass(), word});
+      msg.innerHTML = `<div class="msg success">Power Word set — active for the next 12 hours.</div>`;
+      powerWordSetInput.value = "";
+      renderPowerWordStatus();
+    }catch(err){
+      msg.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
+    }
+  });
+
+  document.getElementById("refreshPowerWordBtn").addEventListener("click", renderPowerWordStatus);
+
+  async function renderPowerWordStatus(){
+    const el = document.getElementById("powerWordStatus");
+    el.innerHTML = `<span style="color:var(--ink-faint);font-size:0.85rem;">Loading…</span>`;
+    try{
+      const status = await api("teacherGetPowerWord", {pass: teacherPass()});
+      if(!status.word){
+        el.innerHTML = `<span style="color:var(--ink-faint);font-size:0.85rem;">No Power Word has been set yet.</span>`;
+        return;
+      }
+      const expires = new Date(status.expiresAt);
+      const when = expires.toLocaleString();
+      el.innerHTML = `
+        <div class="row" style="gap:10px;align-items:center;flex-wrap:wrap;">
+          <span class="pin-display" style="font-size:1.1rem;padding:6px 14px;">${escapeHTML(status.word)}</span>
+          <span class="tag ${status.active?'unused':'used'}">${status.active?'active':'expired'}</span>
+          <span style="font-size:0.8rem;color:var(--ink-faint);">${status.active?'expires':'expired'} ${when}</span>
+          <span style="font-size:0.8rem;color:var(--ink-faint);">&middot; redeemed by ${status.redemptions} adventurer${status.redemptions===1?'':'s'}</span>
+        </div>`;
+    }catch(err){
+      el.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
+    }
+  }
+
   document.getElementById("resetAllBtn").addEventListener("click", async ()=>{
     if(!confirm("This will erase every student's runes, crafted items, and PIN history for the whole class. Continue?")) return;
     if(!confirm("Really sure? This cannot be undone.")) return;
@@ -1463,6 +1575,7 @@
     renderTeacherPins();
     renderTeacherStudents();
     renderTeacherItems();
+    renderPowerWordStatus();
   }
 
   /* ============ util ============ */
