@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Runic System</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Nunito:wght@400;600;700;800&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-deep:#070906; --bg-vign:#030402;
+    --stone:#212a1c; --stone-dark:#111710; --stone-light:#38452e; --stone-edge:#4a5d3f;
+    --ink:#dde8d3; --ink-dim:#a9bc9c; --ink-faint:#748568;
+    --moss:#5e9950; --moss-bright:#a6e08c; --moss-glow:rgba(94,153,80,.32);
+    --gold:#d9b25c; --gold-dim:#8a6f34;
+    --blood:#7a2f22;
+  }
+  :root:not([data-theme="light"]){ }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ } }
+  :root[data-theme="dark"]{ }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 1100px 700px at 50% -10%, #1a2b14aa, transparent 60%),
+      radial-gradient(ellipse 900px 900px at 50% 120%, var(--bg-vign), transparent 60%),
+      repeating-linear-gradient(0deg, #0b0f09 0 46px, #0f1310 46px 48px),
+      repeating-linear-gradient(90deg, transparent 0 118px, #00000055 118px 121px),
+      var(--bg-deep);
+    font-family:'EB Garamond', Georgia, serif;
+    font-size:15px;
+    color:var(--ink);
+    min-height:100vh;
+    padding:32px 14px 48px;
+  }
+  h1,h2,.display{ font-family:'VT323', 'Nunito', monospace; letter-spacing:.02em; margin:0; line-height:1.3; }
+
+  @keyframes glowpulse{
+    0%,100%{ box-shadow: 0 0 0 1px var(--stone-edge), 0 0 8px 1px var(--moss-glow), inset 0 0 24px #00000090; }
+    50%{ box-shadow: 0 0 0 1px var(--stone-edge), 0 0 13px 2px var(--moss-glow), inset 0 0 24px #00000090; }
+  }
+
+
+  /* --- carved stone panel helpers --- */
+  .carved{ background:linear-gradient(180deg,var(--stone),var(--stone-dark)); border:1px solid var(--stone-edge);
+    box-shadow: inset 0 1px 0 #5c6f4f55, inset 0 -2px 4px #00000090, 0 3px 10px #00000080; }
+  .sunken-dark{ background:#0e0c09; border:1px solid var(--stone-edge);
+    box-shadow: inset 0 2px 6px #000000cc, inset 0 0 10px #00000090; }
+  .btn-rune{ font-family:'EB Garamond',serif; font-size:14px; letter-spacing:.02em; color:var(--ink);
+    background:linear-gradient(180deg,var(--stone-light),var(--stone-dark)); cursor:pointer; padding:7px 16px;
+    border:1px solid var(--stone-edge); box-shadow: inset 0 1px 0 #5c6f4f55, 0 2px 6px #00000070;
+    transition:box-shadow .15s, color .15s, border-color .15s; }
+  .btn-rune:hover{ color:var(--moss-bright); border-color:var(--moss); box-shadow: inset 0 1px 0 #5c6f4f55, 0 0 6px var(--moss-glow); }
+  .btn-rune:active{ box-shadow: inset 0 2px 8px #00000090; }
+  .btn-rune.big{ padding:12px 26px; font-size:16px; font-family:'Nunito',sans-serif; font-weight:700; }
+  .btn-rune:disabled{ color:var(--ink-faint); cursor:default; box-shadow:none; border-color:var(--stone-edge); }
+  .btn-rune:disabled:hover{ color:var(--ink-faint); border-color:var(--stone-edge); box-shadow:none; }
+
+  /* --- window / archway --- */
+  .window{ max-width:900px; margin:0 auto; background:var(--stone);
+    border:1px solid var(--stone-edge); border-radius:0;
+    box-shadow: 0 0 0 1px #000, 0 0 18px 3px var(--moss-glow), 0 20px 60px #000000cc, inset 0 0 50px #00000060;
+    overflow:hidden; }
+
+  .titlebar{ position:relative; text-align:center; padding:22px 60px 16px; background:
+      radial-gradient(ellipse 400px 140px at 50% 0%, #26381f55, transparent), linear-gradient(180deg,#1b2416,#0f140d);
+    border-bottom:1px solid var(--stone-edge); }
+  .torch-slot{ position:absolute; top:14px; width:56px; height:56px; }
+  .torch-slot.left{ left:22px; }
+  .torch-slot.right{ right:22px; }
+  .torch-slot img{ width:100%; height:100%; object-fit:contain;
+    filter:drop-shadow(0 0 3px var(--moss-glow)); display:block; }
+  /* Shown only if the image at the path below fails to load, so you can see
+     exactly where the asset goes before you've added it. */
+  .torch-slot.missing{ border:1px dashed var(--stone-edge); border-radius:0;
+    display:flex; align-items:center; justify-content:center; }
+  .torch-slot.missing::before{ content:attr(data-label); font-size:7.5px; line-height:1.35;
+    color:var(--ink-faint); text-align:center; padding:3px; font-family:'EB Garamond',serif; }
+  .titlebar h1{ font-size:2.1rem; color:var(--moss-bright); text-shadow:0 0 5px var(--moss-glow), 0 0 2px #000; }
+  .titlebar p{ margin:4px 0 0; color:var(--ink-faint); font-size:.8rem; letter-spacing:.08em; }
+
+  /* --- adventurer / PIN widget, top right of the header --- */
+  .adventurer-widget{ position:absolute; top:28px; right:90px; display:flex; align-items:center; gap:6px; }
+  .adventurer-widget label{ margin:0; font-size:.68rem; color:var(--ink-faint); letter-spacing:.05em; white-space:nowrap; }
+  .adventurer-widget input[type=text]{ width:120px; padding:5px 7px; font-size:.85rem; }
+  .adventurer-widget .lock-btn{ padding:5px 9px; font-size:.85rem; line-height:1; }
+  @media (max-width:640px){
+    .adventurer-widget{ position:static; justify-content:center; margin-top:10px; }
+    .adventurer-widget input[type=text]{ width:110px; }
+  }
+
+  .tab-strip{ display:flex; gap:2px; padding:10px 14px 0; flex-wrap:wrap; background:#0f140d; }
+  .tab-strip button{ font-family:'VT323',monospace; font-size:1.05rem; letter-spacing:.03em; color:var(--ink-dim);
+    padding:9px 15px; cursor:pointer; background:var(--stone-dark); border:1px solid var(--stone-edge); border-bottom:none;
+    border-radius:0; position:relative; top:1px; }
+  .tab-strip button.active{ background:var(--stone); color:var(--moss-bright); text-shadow:0 0 4px var(--moss-glow);
+    border-color:var(--moss); box-shadow:0 -3px 8px -4px var(--moss-glow); }
+
+  .content{ padding:20px 22px 24px; border-top:1px solid var(--stone-edge); }
+
+  h2.section-title{ font-family:'VT323','Nunito',monospace; font-size:1.4rem; color:var(--moss-bright); margin:0 0 12px;
+    display:flex; align-items:center; gap:8px; text-shadow:0 0 4px var(--moss-glow); line-height:1.2; }
+
+  fieldset{ border:1px solid var(--stone-edge); border-radius:0; margin:0 0 16px; padding:14px 16px;
+    background:linear-gradient(180deg,#1c2417aa,#10160faa); }
+  legend{ font-family:'Nunito',sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.06em; color:var(--moss); padding:0 8px; }
+
+  label{ display:block; font-size:.78rem; color:var(--ink-dim); margin-bottom:4px; letter-spacing:.02em; }
+  input[type=text],input[type=password],select{
+    font-family:'EB Garamond',serif; font-size:1rem; padding:8px 10px; width:100%;
+    border:1px solid var(--stone-edge); border-radius:0; background:#0e0c09; color:var(--ink); }
+  input:focus,select:focus{ outline:none; border-color:var(--moss); box-shadow:0 0 5px var(--moss-glow); }
+
+  .field-row{ display:flex; gap:16px; flex-wrap:wrap; margin-bottom:12px; }
+  .field-row > div{ flex:1; min-width:150px; }
+
+  .hint{ font-size:.78rem; color:var(--ink-faint); margin-top:6px; font-style:italic; }
+
+  .rune-row{ display:flex; gap:14px; flex-wrap:wrap; margin:10px 0 0; }
+  .rune-slot{ width:82px; display:flex; flex-direction:column; align-items:center;
+    justify-content:flex-start; gap:6px; font-size:.7rem; font-family:'Nunito',sans-serif; font-weight:700; letter-spacing:.03em; text-align:center;
+    color:var(--ink-dim); }
+
+  /* --- rune stone tablets: angular (not rounded), etched gold glyph on dark stone --- */
+  .rune-stone{ width:64px; height:64px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(160deg,#2f291f,#151109); border:1px solid var(--gold-dim);
+    clip-path:polygon(14% 0,86% 0,100% 100%,0 100%); animation:glowpulse 3.2s ease-in-out infinite; }
+  .rune-stone.sm{ width:26px; height:26px; animation:none; }
+  .rune-stone svg{ width:58%; height:58%; }
+  .rune-stone.god{ border-color:var(--moss); }
+  .rune-chip{ display:inline-flex; align-items:center; gap:7px; }
+
+  table.listview{ width:100%; border-collapse:collapse; font-size:.85rem; }
+  table.listview th{ text-align:left; font-family:'Nunito',sans-serif; font-weight:700; font-size:.68rem; letter-spacing:.05em; color:var(--moss);
+    padding:8px 10px; border-bottom:1px solid var(--moss-glow); }
+  table.listview td{ padding:7px 10px; border-bottom:1px solid #3a301f; color:var(--ink-dim); }
+  table.listview tr:hover td{ background:#3a2d1655; color:var(--ink); }
+
+  .icon-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:8px; }
+  .icon-tile{ display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 8px 12px; text-align:center;
+    border:1px solid var(--stone-edge); border-radius:0; background:linear-gradient(180deg,#1c2417,#10160f);
+    cursor:default; transition:box-shadow .15s, border-color .15s; }
+  .icon-tile:hover{ border-color:var(--moss); box-shadow:0 0 7px var(--moss-glow); }
+  .icon-tile .lbl{ font-family:'Nunito',sans-serif; font-weight:700; font-size:.68rem; color:var(--ink); line-height:1.3; }
+  .icon-tile .recipe{ font-size:.68rem; color:var(--ink-faint); }
+
+  /* --- item art, borrowed pattern from runic-system-cloud_PICS.html's .item-img-container --- */
+  .item-img{ width:100%; height:64px; display:flex; align-items:center; justify-content:center;
+    background:var(--stone-dark); border:1px solid var(--stone-edge); overflow:hidden; }
+  .item-img img{ max-width:100%; max-height:100%; object-fit:contain;
+    filter:drop-shadow(0 0 2px var(--moss-glow)); display:block; }
+  /* Shown only if the image at the path below fails to load. */
+  .item-img.missing{ border-style:dashed; }
+  .item-img.missing::before{ content:attr(data-label); font-size:6.5px; line-height:1.3;
+    color:var(--ink-faint); text-align:center; padding:3px; font-family:'EB Garamond',serif; }
+
+  .checklist label{ display:flex; align-items:center; gap:8px; font-size:.85rem; padding:4px 0; color:var(--ink-dim); }
+
+  .status-bar{ display:flex; justify-content:space-between; padding:8px 22px; font-size:.72rem; color:var(--ink-faint);
+    border-top:1px solid var(--stone-edge); background:#100d08; letter-spacing:.03em; }
+  .status-bar .glow-dot{ color:var(--moss); text-shadow:0 0 3px var(--moss-glow); }
+
+  @media (max-width:640px){
+    .field-row{ flex-direction:column; }
+    .titlebar{ padding:20px 46px 14px; }
+    .titlebar h1{ font-size:.8rem; }
+    .torch-slot{ width:40px; height:40px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="window">
+  <div class="titlebar">
+    <div class="torch-slot left" data-label="assets/torch-left.png">
+      <img src="assets/torch-left.png" alt=""
+        onerror="this.closest('.torch-slot').classList.add('missing'); this.remove();">
+    </div>
+    <h1>The Runic System</h1>
+    <p>Runes of Ran &nbsp;·&nbsp; a druidic ledger of quests and craft</p>
+    <div class="torch-slot right" data-label="assets/torch-right.png">
+      <img src="assets/torch-right.png" alt=""
+        onerror="this.closest('.torch-slot').classList.add('missing'); this.remove();">
+    </div>
+    <div class="adventurer-widget">
+      <label>Adventurer</label>
+      <input type="text" value="Pip Longstride">
+      <button class="btn-rune lock-btn" title="Set or enter your PIN">🔒</button>
+    </div>
+  </div>
+
+  <div class="tab-strip" id="tabs">
+    <button data-tab="roll" class="active">Roll</button>
+    <button data-tab="inv">My Runes</button>
+    <button data-tab="transform">Transform</button>
+    <button data-tab="craft">Craft</button>
+    <button data-tab="codex">Codex</button>
+    <button data-tab="teacher">Teacher</button>
+  </div>
+
+  <div class="content">
+
+    <!-- ROLL -->
+    <div class="tabpane" id="pane-roll">
+      <h2 class="section-title">🎲 Roll for Runes</h2>
+      <fieldset>
+        <legend>Redeem Milestone Code</legend>
+        <div class="field-row">
+          <div>
+            <label>Six-Digit Code</label>
+            <input type="text" placeholder="• • • • • •" maxlength="6">
+          </div>
+        </div>
+        <button class="btn-rune big">🎲 Roll for 3 Runes</button>
+        <p class="hint">Codes are one-time use. Seek your teacher at the next quest milestone. Your PIN is confirmed once via the Adventurer lock above.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>Your Last Roll</legend>
+        <div class="rune-row">
+          <div class="rune-slot"><span class="rune-stone" data-rune="NEF"></span>Nef</div>
+          <div class="rune-slot"><span class="rune-stone" data-rune="TIR"></span>Tir</div>
+          <div class="rune-slot"><span class="rune-stone" data-rune="ORT"></span>Ort</div>
+        </div>
+      </fieldset>
+    </div>
+
+    <!-- INVENTORY -->
+    <div class="tabpane" id="pane-inv" style="display:none">
+      <h2 class="section-title">🎒 Pip Longstride's Inventory</h2>
+      <table class="listview">
+        <tr><th>Rune</th><th>Qty</th><th>Point Value</th></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="TIR"></span>Tir</span></td><td>3</td><td>2</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="ITH"></span>Ith</span></td><td>1</td><td>2</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="NEF"></span>Nef</span></td><td>4</td><td>5</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="TAL"></span>Tal</span></td><td>2</td><td>5</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="ORT"></span>Ort</span></td><td>1</td><td>9</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="THUL"></span>Thul</span></td><td>0</td><td>9</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="SHAEL"></span>Shael</span></td><td>1</td><td>14</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="IO"></span>Io</span></td><td>2</td><td>14</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="LUM"></span>Lum</span></td><td>0</td><td>20</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="JAH"></span>Jah</span></td><td>0</td><td>20</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="BER"></span>Ber</span></td><td>1</td><td>27</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="ZOD"></span>Zod</span></td><td>0</td><td>27</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="GOD"></span>God Rune</span></td><td>0</td><td>—</td></tr>
+      </table>
+      <p class="hint">Crafted: Cling, Prism</p>
+    </div>
+
+    <!-- TRANSFORM -->
+    <div class="tabpane" id="pane-transform" style="display:none">
+      <h2 class="section-title">⚗️ Transform Runes</h2>
+      <fieldset>
+        <legend>Step 1 — Choose a Target Rune</legend>
+        <select>
+          <option>Ort — needs 9 points</option>
+          <option>Thul — needs 9 points</option>
+          <option>Shael — needs 14 points</option>
+          <option>Ber — needs 27 points</option>
+          <option>Zod — needs 27 points</option>
+        </select>
+      </fieldset>
+      <fieldset>
+        <legend>Step 2 — Sacrifice Runes (must total ≥ target points)</legend>
+        <div class="checklist">
+          <label><input type="checkbox" checked> Tir ×3 (2 pts each)</label>
+          <label><input type="checkbox"> Nef ×4 (5 pts each)</label>
+          <label><input type="checkbox" checked> Ith ×1 (2 pts each)</label>
+          <label><input type="checkbox"> Ber ×1 (27 pts each)</label>
+        </div>
+        <p class="hint">Selected total: 8 / 9 points needed</p>
+      </fieldset>
+      <button class="btn-rune big" disabled>⚗️ Destroy &amp; Forge</button>
+    </div>
+
+    <!-- CRAFT -->
+    <div class="tabpane" id="pane-craft" style="display:none">
+      <h2 class="section-title">⚔️ Craft a Runeword</h2>
+      <div class="icon-grid" id="craftGrid">
+        <div class="icon-tile"><div class="item-img" data-label="images/enigma.png"><img src="images/enigma.png" alt="Enigma" loading="lazy" onerror="this.closest('.item-img').classList.add('missing');this.remove();"></div><span class="lbl">Enigma</span><span class="recipe">Ber+Nef+Thul+Ort</span></div>
+        <div class="icon-tile"><div class="item-img" data-label="images/cling.png"><img src="images/cling.png" alt="Cling" loading="lazy" onerror="this.closest('.item-img').classList.add('missing');this.remove();"></div><span class="lbl">Cling</span><span class="recipe">Io+Nef+Ith</span></div>
+        <div class="icon-tile"><div class="item-img" data-label="images/prism.png"><img src="images/prism.png" alt="Prism" loading="lazy" onerror="this.closest('.item-img').classList.add('missing');this.remove();"></div><span class="lbl">Prism</span><span class="recipe">Tir+Nef+Tal</span></div>
+        <div class="icon-tile"><div class="item-img" data-label="images/rizz.png"><img src="images/rizz.png" alt="Silver Tongue of Rizz" loading="lazy" onerror="this.closest('.item-img').classList.add('missing');this.remove();"></div><span class="lbl">Silver Tongue of Rizz</span><span class="recipe">Shael+Io</span></div>
+        <div class="icon-tile"><div class="item-img" data-label="images/quicksilver.png"><img src="images/quicksilver.png" alt="Quicksilver" loading="lazy" onerror="this.closest('.item-img').classList.add('missing');this.remove();"></div><span class="lbl">Quicksilver</span><span class="recipe">Lum+Ort+Ith</span></div>
+        <div class="icon-tile"><div class="item-img" data-label="images/charger.png"><img src="images/charger.png" alt="Charger" loading="lazy" onerror="this.closest('.item-img').classList.add('missing');this.remove();"></div><span class="lbl">Charger</span><span class="recipe">Ber+Thul+Tal+Shael</span></div>
+        <div class="icon-tile"><div class="item-img" data-label="images/precious.png"><img src="images/precious.png" alt="Precious" loading="lazy" onerror="this.closest('.item-img').classList.add('missing');this.remove();"></div><span class="lbl">Precious</span><span class="recipe">Zod+Lum+Thul</span></div>
+        <div class="icon-tile"><div class="item-img" data-label="images/hive.png"><img src="images/hive.png" alt="Hive" loading="lazy" onerror="this.closest('.item-img').classList.add('missing');this.remove();"></div><span class="lbl">Hive</span><span class="recipe">Ber+Lum+Ort+Ith</span></div>
+        <div class="icon-tile"><div class="item-img" data-label="images/carotene.png"><img src="images/carotene.png" alt="Blade of Carotene" loading="lazy" onerror="this.closest('.item-img').classList.add('missing');this.remove();"></div><span class="lbl">Blade of Carotene</span><span class="recipe">Io+Nef+Tir</span></div>
+        <div class="icon-tile"><div class="item-img" data-label="images/folly.png"><img src="images/folly.png" alt="Folly Scarf" loading="lazy" onerror="this.closest('.item-img').classList.add('missing');this.remove();"></div><span class="lbl">Folly Scarf</span><span class="recipe">Zod+Shael+Ort</span></div>
+        <div class="icon-tile"><div class="item-img" data-label="images/summarmaekir.png"><img src="images/summarmaekir.png" alt="Summarmækir" loading="lazy" onerror="this.closest('.item-img').classList.add('missing');this.remove();"></div><span class="lbl">Summarmækir</span><span class="recipe">GOD+Zod+Jah+Io</span></div>
+        <div class="icon-tile"><div class="item-img" data-label="images/ransnet.png"><img src="images/ransnet.png" alt="Ran's Net" loading="lazy" onerror="this.closest('.item-img').classList.add('missing');this.remove();"></div><span class="lbl">Ran's Net</span><span class="recipe">GOD+Ber+Lum+Shael</span></div>
+        <div class="icon-tile"><div class="item-img" data-label="images/sourkey.png"><img src="images/sourkey.png" alt="Sour Key" loading="lazy" onerror="this.closest('.item-img').classList.add('missing');this.remove();"></div><span class="lbl">Sour Key</span><span class="recipe">Shael+Io+Jah+Ber ×N</span></div>
+      </div>
+      <p class="hint">Select a runeword to inspect the full recipe and craft it.</p>
+    </div>
+
+    <!-- CODEX -->
+    <div class="tabpane" id="pane-codex" style="display:none">
+      <h2 class="section-title">📖 Rune Codex</h2>
+      <table class="listview">
+        <tr><th>Rune</th><th>Roll Odds</th><th>Points</th></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="TIR"></span>Tir</span></td><td>14%</td><td>2</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="ITH"></span>Ith</span></td><td>14%</td><td>2</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="NEF"></span>Nef</span></td><td>12%</td><td>5</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="TAL"></span>Tal</span></td><td>12%</td><td>5</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="ORT"></span>Ort</span></td><td>10%</td><td>9</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="THUL"></span>Thul</span></td><td>10%</td><td>9</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="SHAEL"></span>Shael</span></td><td>8%</td><td>14</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="IO"></span>Io</span></td><td>8%</td><td>14</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="LUM"></span>Lum</span></td><td>4%</td><td>20</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="JAH"></span>Jah</span></td><td>4%</td><td>20</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="BER"></span>Ber</span></td><td>2%</td><td>27</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="ZOD"></span>Zod</span></td><td>2%</td><td>27</td></tr>
+        <tr><td><span class="rune-chip"><span class="rune-stone sm" data-rune="GOD"></span>God Rune</span></td><td>teacher grant only</td><td>—</td></tr>
+      </table>
+    </div>
+
+    <!-- TEACHER -->
+    <div class="tabpane" id="pane-teacher" style="display:none">
+      <h2 class="section-title">🧙 Teacher's Grimoire</h2>
+      <fieldset>
+        <legend>Unlock</legend>
+        <div class="field-row">
+          <div><label>Passphrase</label><input type="password" placeholder="•••••••"></div>
+          <div style="flex:0;align-self:end;"><button class="btn-rune">Unlock</button></div>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Milestone Codes</legend>
+        <button class="btn-rune">🎟️ Generate New Code</button>
+        <table class="listview" style="margin-top:12px;">
+          <tr><th>Code</th><th>Used</th><th>By</th></tr>
+          <tr><td>482913</td><td>No</td><td>—</td></tr>
+          <tr><td>117205</td><td>Yes</td><td>Pip Longstride</td></tr>
+          <tr><td>930488</td><td>Yes</td><td>Wren Ashby</td></tr>
+        </table>
+      </fieldset>
+    </div>
+
+  </div>
+
+  <div class="status-bar">
+    <span id="statusText">Ready.</span>
+    <span class="glow-dot">● bound to the sheet</span>
+  </div>
+</div>
+
+<script>
+  // Same glyph strokes as the live app's GLYPHS map (runic-system-cloud.html),
+  // rendered as inline SVG on an angular stone tablet instead of colored dots.
+  const GLYPHS = {
+    TIR:   "M30 8 L30 52 M30 8 L44 22 M30 8 L16 22",
+    ITH:   "M14 44 L30 12 L46 44 M22 30 L38 30",
+    NEF:   "M16 16 Q38 16 38 30 Q38 44 16 44",
+    TAL:   "M16 12 L44 12 M20 12 L20 48 L44 48 M20 30 L38 12",
+    ORT:   "M30 10 L18 30 Q18 48 30 48 Q42 48 42 30 Z",
+    THUL:  "M14 44 L30 10 L46 44 M20 32 L40 32",
+    SHAEL: "M22 8 Q34 20 22 30 Q34 40 22 52",
+    IO:    "M20 8 L20 40 Q20 52 32 52 M14 8 L28 8",
+    LUM:   "M30 10 Q46 10 46 26 Q46 42 30 42 Q18 42 18 32",
+    JAH:   "M14 12 L46 48 M46 12 L14 48",
+    BER:   "M18 10 L18 50 M18 10 Q40 10 40 22 Q40 32 18 32",
+    ZOD:   "M14 12 L46 12 L14 48 L46 48 M22 30 L38 30",
+    GOD:   "M30 6 L34 22 L50 22 L37 32 L42 48 L30 38 L18 48 L23 32 L10 22 L26 22 Z",
+  };
+  document.querySelectorAll('.rune-stone[data-rune]').forEach(el=>{
+    const code = el.dataset.rune;
+    const path = GLYPHS[code];
+    if(!path) return;
+    if(code === 'GOD') el.classList.add('god');
+    const stroke = code === 'GOD' ? 'var(--moss-bright)' : 'var(--gold)';
+    el.innerHTML = `<svg viewBox="0 0 60 60"><path d="${path}" stroke="${stroke}" stroke-width="4.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+  });
+
+  const tabs = document.getElementById('tabs');
+  const panes = {
+    roll:'pane-roll', inv:'pane-inv', transform:'pane-transform',
+    craft:'pane-craft', codex:'pane-codex', teacher:'pane-teacher'
+  };
+  const statusText = document.getElementById('statusText');
+  const labels = {roll:'Roll for Runes',inv:'My Runes',transform:'Transform Runes',craft:'Craft a Runeword',codex:'Rune Codex',teacher:"Teacher's Grimoire"};
+  tabs.addEventListener('click', e=>{
+    const btn = e.target.closest('button[data-tab]');
+    if(!btn) return;
+    tabs.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    Object.values(panes).forEach(id=>document.getElementById(id).style.display='none');
+    document.getElementById(panes[btn.dataset.tab]).style.display='block';
+    statusText.textContent = labels[btn.dataset.tab] + ' — ready.';
+  });
+</script>
+</body>
+</html>

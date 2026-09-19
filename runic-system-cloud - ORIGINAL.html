@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Runic System — Runes of Ran</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#161b26;
+    --bg-deep:#0f131c;
+    --panel:#212938;
+    --stone:#2b3346;
+    --stone-line:#3c4760;
+    --ink:#eef1f7;
+    --ink-dim:#a7b0c4;
+    --ink-faint:#6b7590;
+    --amber:#d3a34e;
+    --amber-bright:#eec27a;
+    --amber-deep:#8a621f;
+    --fjord:#4c9c93;
+    --blood:#a8503b;
+    --god:#c65bd8;
+    --radius:3px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, #26314a55, transparent),
+      radial-gradient(ellipse 700px 500px at 100% 10%, #1c3a3a44, transparent),
+      var(--bg);
+    color:var(--ink);
+    font-family:'Spectral', Georgia, serif;
+    min-height:100vh;
+    line-height:1.5;
+  }
+  h1,h2,h3,.display{
+    font-family:'Cinzel', serif;
+    letter-spacing:0.02em;
+    font-weight:600;
+    margin:0;
+  }
+  a{color:var(--amber-bright);}
+  button{font-family:inherit;}
+  ::selection{background:var(--amber-deep);color:#fff;}
+
+  .shell{max-width:980px;margin:0 auto;padding:0 20px 80px;}
+  header.top{
+    padding:28px 20px 20px;
+    display:flex;align-items:center;gap:16px;
+    border-bottom:1px solid var(--stone-line);
+    max-width:980px;margin:0 auto;flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:center;gap:14px;flex:1;min-width:220px;}
+  .brand svg{flex-shrink:0;filter:drop-shadow(0 0 6px #d3a34e55);}
+  .brand-text h1{font-size:1.5rem;color:var(--ink);}
+  .brand-text p{margin:2px 0 0;color:var(--ink-faint);font-size:0.82rem;}
+
+  .who{display:flex;align-items:end;gap:8px;}
+  .who input{
+    background:var(--stone);border:1px solid var(--stone-line);color:var(--ink);
+    padding:8px 10px;border-radius:var(--radius);font-family:'Spectral',serif;font-size:0.95rem;
+    width:150px;
+  }
+  .who label{font-size:0.72rem;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:2px;}
+  .gear{
+    background:var(--stone);border:1px solid var(--stone-line);color:var(--ink-dim);
+    width:38px;height:38px;border-radius:var(--radius);cursor:pointer;font-size:1.1rem;
+  }
+  .gear:hover{color:var(--ink);border-color:var(--ink-dim);}
+  .lock-icon.unlocked{border-color:var(--fjord);color:var(--fjord);}
+  .pin-modal-input{width:100%;font-size:2rem;letter-spacing:0.5em;text-align:center;font-family:'Cinzel',serif;}
+  .sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;background:var(--ink-faint);}
+  .sync-dot.ok{background:var(--fjord);}
+  .sync-dot.bad{background:var(--blood);}
+  .sync-label{font-size:0.72rem;color:var(--ink-faint);display:flex;align-items:center;}
+
+  nav.tabs{
+    display:flex;gap:4px;flex-wrap:wrap;
+    padding:14px 20px 0;max-width:980px;margin:0 auto;
+    border-bottom:1px solid var(--stone-line);
+  }
+  nav.tabs button{
+    background:none;border:none;color:var(--ink-dim);
+    padding:10px 16px;cursor:pointer;font-size:0.95rem;
+    font-family:'Cinzel',serif;letter-spacing:0.02em;
+    border-bottom:2px solid transparent;
+    transition:color .15s;
+  }
+  nav.tabs button:hover{color:var(--ink);}
+  nav.tabs button.active{color:var(--amber-bright);border-bottom-color:var(--amber);}
+
+  main{padding-top:28px;}
+  .panel{
+    background:var(--panel);border:1px solid var(--stone-line);border-radius:var(--radius);
+    padding:22px 24px;margin-bottom:20px;
+  }
+  .panel h2{font-size:1.15rem;color:var(--amber-bright);margin-bottom:6px;}
+  .lede{color:var(--ink-dim);font-size:0.92rem;margin:0 0 18px;max-width:60ch;}
+
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--amber-deep);color:#fff5e2;border:1px solid var(--amber);
+    padding:10px 18px;border-radius:var(--radius);cursor:pointer;
+    font-family:'Cinzel',serif;font-size:0.85rem;letter-spacing:0.03em;
+    transition:background .15s,transform .1s;
+  }
+  .btn:hover{background:#9c7228;}
+  .btn:active{transform:translateY(1px);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .btn.ghost{background:transparent;color:var(--ink-dim);border-color:var(--stone-line);}
+  .btn.ghost:hover{color:var(--ink);border-color:var(--ink-dim);}
+  .btn.danger{background:#5c2a20;border-color:var(--blood);color:#ffe2da;}
+  .btn.danger:hover{background:var(--blood);}
+  .btn.small{padding:6px 12px;font-size:0.76rem;}
+
+  input[type=text],input[type=password],input[type=number],select{
+    background:var(--stone);border:1px solid var(--stone-line);color:var(--ink);
+    padding:9px 11px;border-radius:var(--radius);font-family:'Spectral',serif;font-size:0.95rem;
+  }
+  input:focus,select:focus,button:focus-visible{outline:2px solid var(--amber);outline-offset:1px;}
+
+  .rune-stone{
+    width:56px;height:56px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(160deg,#3a4358,#232a3a);
+    border:1px solid var(--stone-line);
+    clip-path:polygon(14% 0,86% 0,100% 100%,0 100%);
+    position:relative;
+  }
+  .rune-stone.god{background:linear-gradient(160deg,#4a2f57,#241a2c);border-color:var(--god);}
+  .rune-stone svg{width:60%;height:60%;}
+  .rune-stone .count{
+    position:absolute;bottom:-8px;right:-8px;
+    background:var(--amber-deep);color:#fff;
+    border-radius:50%;min-width:20px;height:20px;padding:0 4px;
+    font-size:0.68rem;display:flex;align-items:center;justify-content:center;
+    font-family:'Cinzel',serif;border:1px solid #1b2230;
+  }
+
+  .rune-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;}
+  .rune-card{
+    background:var(--stone);border:1px solid var(--stone-line);border-radius:var(--radius);
+    padding:12px;display:flex;gap:10px;align-items:center;
+  }
+  .rune-card .info{min-width:0;}
+  .rune-card .name{font-family:'Cinzel',serif;font-size:0.88rem;color:var(--ink);}
+  .rune-card .meta{font-size:0.75rem;color:var(--ink-faint);margin-top:2px;}
+  .rune-card.own-zero{opacity:0.45;}
+
+  .roll-form{display:flex;gap:10px;align-items:end;flex-wrap:wrap;}
+  .field label{display:block;font-size:0.72rem;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;}
+  .pin-input{letter-spacing:0.35em;font-size:1.3rem;width:170px;text-align:center;font-family:'Cinzel',serif;}
+  .msg{margin-top:12px;font-size:0.88rem;padding:10px 12px;border-radius:var(--radius);}
+  .msg.error{background:#3a1e1a;border:1px solid var(--blood);color:#ffcfc2;}
+  .msg.success{background:#1c3530;border:1px solid var(--fjord);color:#c9ece5;}
+  .msg.info{background:#212c3a;border:1px solid var(--stone-line);color:var(--ink-dim);}
+
+  .reveal-row{display:flex;gap:18px;margin-top:24px;flex-wrap:wrap;}
+  .reveal-card{
+    background:var(--stone);border:1px solid var(--amber);border-radius:var(--radius);
+    padding:16px;text-align:center;width:130px;
+    animation:flip .5s ease;
+  }
+  @keyframes flip{from{transform:rotateY(90deg);opacity:0;}to{transform:rotateY(0);opacity:1;}}
+  .reveal-card svg{width:44px;height:44px;margin-bottom:8px;}
+  .reveal-card .name{font-family:'Cinzel',serif;color:var(--amber-bright);}
+  .reveal-card .pts{color:var(--ink-faint);font-size:0.78rem;margin-top:2px;}
+
+  .target-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;}
+  .target-pick{
+    background:var(--stone);border:1px solid var(--stone-line);border-radius:var(--radius);
+    padding:8px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;
+  }
+  .target-pick.active{border-color:var(--amber);background:#33301f;}
+  .target-pick svg{width:22px;height:22px;}
+  .stepper{display:flex;align-items:center;gap:8px;}
+  .stepper button{
+    width:26px;height:26px;border-radius:50%;border:1px solid var(--stone-line);
+    background:var(--stone);color:var(--ink);cursor:pointer;font-size:1rem;line-height:1;
+  }
+  .stepper button:disabled{opacity:.3;cursor:not-allowed;}
+  .stepper .n{min-width:16px;text-align:center;font-family:'Cinzel',serif;}
+
+  .progress-bar{height:8px;background:var(--stone);border-radius:6px;overflow:hidden;margin:14px 0;}
+  .progress-bar > div{height:100%;background:linear-gradient(90deg,var(--amber-deep),var(--amber-bright));transition:width .2s;}
+
+  .item-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px;}
+  .item-card{
+    background:var(--stone);border:1px solid var(--stone-line);border-radius:var(--radius);
+    padding:16px;display:flex;flex-direction:column;gap:8px;
+  }
+  .item-card.craftable{border-color:var(--fjord);}
+  .item-card .head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+  .item-card .name{font-family:'Cinzel',serif;color:var(--amber-bright);font-size:1rem;}
+  .item-card .slot{font-size:0.72rem;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.06em;}
+  .item-card .effect{font-size:0.85rem;color:var(--ink-dim);}
+  .item-card .quote{font-size:0.8rem;color:var(--ink-faint);font-style:italic;border-left:2px solid var(--stone-line);padding-left:8px;}
+  .recipe{display:flex;gap:6px;flex-wrap:wrap;}
+  .req-chip{
+    display:flex;align-items:center;gap:5px;background:var(--bg-deep);
+    border:1px solid var(--stone-line);border-radius:12px;padding:3px 9px 3px 5px;font-size:0.76rem;
+  }
+  .req-chip svg{width:16px;height:16px;}
+  .req-chip.have{border-color:var(--fjord);color:var(--fjord);}
+  .req-chip.missing{border-color:var(--blood);color:#e08a75;}
+  .req-chip.god{border-color:var(--god);color:var(--god);}
+
+  .crafted-list{margin-top:10px;}
+  .crafted-item{
+    display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed var(--stone-line);
+    font-size:0.88rem;color:var(--ink-dim);
+  }
+  .crafted-item .n{color:var(--ink);font-family:'Cinzel',serif;}
+
+  table{width:100%;border-collapse:collapse;font-size:0.88rem;}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--stone-line);}
+  th{color:var(--ink-faint);font-family:'Cinzel',serif;font-weight:500;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;}
+
+  .pin-display{
+    font-family:'Cinzel',serif;font-size:2.4rem;letter-spacing:0.3em;
+    background:var(--bg-deep);border:1px solid var(--amber);border-radius:var(--radius);
+    padding:18px;text-align:center;color:var(--amber-bright);margin:12px 0;
+  }
+  .lock{display:flex;flex-direction:column;align-items:center;gap:14px;padding:40px 20px;text-align:center;}
+  .lock svg{width:40px;height:40px;color:var(--ink-faint);}
+
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .between{justify-content:space-between;}
+  .tag{font-size:0.72rem;padding:2px 8px;border-radius:10px;border:1px solid var(--stone-line);color:var(--ink-faint);}
+  .tag.used{border-color:var(--blood);color:#e08a75;}
+  .tag.unused{border-color:var(--fjord);color:var(--fjord);}
+
+  footer.note{color:var(--ink-faint);font-size:0.78rem;text-align:center;margin-top:30px;}
+
+  .overlay{
+    position:fixed;inset:0;background:#0b0e14dd;z-index:50;
+    display:flex;align-items:center;justify-content:center;padding:20px;
+  }
+  .overlay .panel{max-width:480px;width:100%;margin:0;}
+
+  @media(max-width:600px){
+    header.top{flex-direction:column;align-items:flex-start;}
+    .who{width:100%;}
+    .who input{flex:1;width:auto;}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <svg width="46" height="46" viewBox="0 0 60 60"><polygon points="9,3 51,3 58,57 2,57" fill="#2b3346" stroke="#d3a34e" stroke-width="1.5"/><path d="M22 42 L30 12 L38 42 M25 30 L35 30" stroke="#eec27a" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
+    <div class="brand-text">
+      <h1>The Runic System</h1>
+      <p>Twelve Runes of Ran &middot; Mr. Sasha's Campaign</p>
+    </div>
+  </div>
+  <div class="who">
+    <div>
+      <label for="studentName">Adventurer</label>
+      <input type="text" id="studentName" placeholder="Your name" autocomplete="off">
+    </div>
+    <button class="gear lock-icon" id="lockIcon" title="Enter a name">🔒</button>
+    <button class="gear" id="settingsBtn" title="Backend connection">⚙</button>
+  </div>
+</header>
+
+<div class="shell" style="padding-top:10px;">
+  <span class="sync-label"><span class="sync-dot" id="syncDot"></span><span id="syncText">Checking connection…</span></span>
+</div>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="roll" class="active">Roll</button>
+  <button data-tab="inventory">My Runes</button>
+  <button data-tab="transform">Transform</button>
+  <button data-tab="craft">Craft</button>
+  <button data-tab="codex">Codex</button>
+  <button data-tab="teacher">Teacher</button>
+</nav>
+
+<div class="shell">
+<main>
+
+  <!-- ROLL -->
+  <section id="tab-roll" class="tabpane">
+    <div class="panel">
+      <h2>Roll for Runes</h2>
+      <p class="lede">Enter the six-digit milestone code Mr. Sasha gave you at your last quest milestone (not your personal PIN). Each code works once and grants three runes. You'll also be asked for your own 4-digit adventurer PIN, to prove these are your runes.</p>
+      <div class="roll-form">
+        <div class="field">
+          <label for="pinInput">One-time Milestone Code</label>
+          <input type="text" id="pinInput" class="pin-input" maxlength="6" inputmode="numeric" placeholder="000000">
+        </div>
+        <button class="btn" id="rollBtn">Roll Three Runes</button>
+      </div>
+      <div id="rollMsg"></div>
+      <div class="reveal-row" id="rollReveal"></div>
+    </div>
+  </section>
+
+  <!-- INVENTORY -->
+  <section id="tab-inventory" class="tabpane" style="display:none">
+    <div class="panel">
+      <div class="row between"><h2>My Runes</h2><button class="btn ghost small" id="refreshInvBtn">Refresh</button></div>
+      <p class="lede">Every rune you've rolled, traded for, or transformed. Craft and Transform pull from this pool.</p>
+      <div class="rune-grid" id="invGrid"></div>
+    </div>
+    <div class="panel">
+      <h2>Forged Items</h2>
+      <p class="lede">Runewords you've crafted so far.</p>
+      <div class="crafted-list" id="craftedList"></div>
+    </div>
+  </section>
+
+  <!-- TRANSFORM -->
+  <section id="tab-transform" class="tabpane" style="display:none">
+    <div class="panel">
+      <h2>Transform Runes</h2>
+      <p class="lede">Destroy a set of runes whose combined value is <em>greater than or equal to</em> your target rune's value, and Mr. Sasha will forge the target for you.</p>
+      <h3 style="font-size:0.9rem;color:var(--ink-dim);margin-bottom:8px;">1 &middot; Choose a target rune</h3>
+      <div class="target-row" id="targetRow"></div>
+      <div id="transformBody"></div>
+    </div>
+  </section>
+
+  <!-- CRAFT -->
+  <section id="tab-craft" class="tabpane" style="display:none">
+    <div class="panel">
+      <h2>Craft a Runeword</h2>
+      <p class="lede">Combining runes in an item makes it magical — and destroys the runes used. Green-bordered items are ready to craft right now.</p>
+      <div class="item-grid" id="itemGrid"></div>
+    </div>
+  </section>
+
+  <!-- CODEX -->
+  <section id="tab-codex" class="tabpane" style="display:none">
+    <div class="panel">
+      <h2>Rune Codex</h2>
+      <p class="lede">Roll odds and transformation point values for the twelve runes of Ran.</p>
+      <table>
+        <thead><tr><th>Rune</th><th>Roll Odds</th><th>Point Value</th></tr></thead>
+        <tbody id="codexTable"></tbody>
+      </table>
+    </div>
+    <div class="panel">
+      <h2>Runeword Compendium</h2>
+      <p class="lede">Every known combination, for reference.</p>
+      <table>
+        <thead><tr><th>Runeword</th><th>Slot</th><th>Recipe</th></tr></thead>
+        <tbody id="compendiumTable"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- TEACHER -->
+  <section id="tab-teacher" class="tabpane" style="display:none">
+    <div class="panel" id="teacherLockPanel">
+      <div class="lock">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="10" width="16" height="10" rx="1"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
+        <div>
+          <h2 style="margin-bottom:6px;">Teacher Access</h2>
+          <p class="lede" style="margin:0 auto;">Enter your teacher passphrase to generate PINs and manage students. First time here? Type any passphrase (3+ characters) and it becomes the shared one for the whole class.</p>
+        </div>
+        <div class="row">
+          <input type="password" id="teacherPass" placeholder="Passphrase" style="width:200px;">
+          <button class="btn" id="teacherUnlockBtn">Unlock</button>
+        </div>
+        <div id="teacherLockMsg"></div>
+      </div>
+    </div>
+
+    <div id="teacherPanels" style="display:none">
+      <div class="panel">
+        <div class="row between">
+          <h2>Generate a Milestone Code</h2>
+          <button class="btn small ghost" id="teacherLockBtn">Lock</button>
+        </div>
+        <p class="lede">Create a new one-time six-digit code and read/write it on the board for a quest milestone. This is separate from each student's personal 4-digit PIN.</p>
+        <button class="btn" id="genPinBtn">Generate Code</button>
+        <div id="newPinDisplay"></div>
+      </div>
+
+      <div class="panel">
+        <div class="row between"><h2>PIN History</h2><button class="btn ghost small" id="refreshPinsBtn">Refresh</button></div>
+        <table>
+          <thead><tr><th>Code</th><th>Status</th><th>Redeemed by</th></tr></thead>
+          <tbody id="pinHistoryTable"></tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <h2>Grant a God Rune</h2>
+        <p class="lede">God Runes aren't earned by rolling — award one by hand for a major campaign milestone.</p>
+        <div class="row">
+          <input type="text" id="godRuneStudent" placeholder="Student name" style="width:200px;">
+          <button class="btn" id="grantGodBtn">Grant God Rune</button>
+        </div>
+        <div id="grantGodMsg"></div>
+      </div>
+
+      <div class="panel">
+        <div class="row between"><h2>Students</h2><button class="btn ghost small" id="refreshStudentsBtn">Refresh</button></div>
+        <p class="lede">If a student forgets their PIN, reset it here — they'll be asked to set a new one next time they act.</p>
+        <table>
+          <thead><tr><th>Name</th><th>Total Runes</th><th>Items Crafted</th><th>PIN</th><th></th></tr></thead>
+          <tbody id="studentsTable"></tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <h2 style="color:#e08a75;">Danger Zone</h2>
+        <p class="lede">Clears every student's runes, crafted items, and all PIN history for the whole class. Cannot be undone.</p>
+        <button class="btn danger" id="resetAllBtn">Reset All Data</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="note">Synced live to your class's shared Google Sheet — safe to use from any device.</footer>
+</div>
+
+<!-- Settings overlay -->
+<div class="overlay" id="settingsOverlay" style="display:none">
+  <div class="panel">
+    <h2>Backend connection</h2>
+    <p class="lede">Paste the Google Apps Script Web App URL for your class's shared rune database (it ends in <code>/exec</code>). Every device that opens this page needs this set once.</p>
+    <input type="text" id="apiUrlInput" style="width:100%;" placeholder="https://script.google.com/macros/s/XXXXXXXX/exec">
+    <div class="row" style="margin-top:12px;">
+      <button class="btn" id="saveApiUrlBtn">Save &amp; Connect</button>
+      <button class="btn ghost" id="closeSettingsBtn">Close</button>
+    </div>
+    <div id="settingsMsg"></div>
+  </div>
+</div>
+
+<!-- Per-adventurer PIN overlay -->
+<div class="overlay" id="pinOverlay" style="display:none">
+  <div class="panel" style="max-width:360px;text-align:center;">
+    <h2 id="pinModalTitle">Enter your PIN</h2>
+    <p class="lede" id="pinModalLede" style="margin:0 auto 14px;"></p>
+    <input type="password" id="pinModalInput" class="pin-modal-input" maxlength="4" inputmode="numeric" placeholder="••••">
+    <div class="row" style="justify-content:center;margin-top:14px;">
+      <button class="btn" id="pinModalSubmit">Continue</button>
+      <button class="btn ghost" id="pinModalCancel">Cancel</button>
+    </div>
+    <div id="pinModalMsg"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============ DATA (display/reference copy — server is authoritative) ============ */
+  const RUNES = [
+    {code:"TIR",   prob:14, points:2},
+    {code:"ITH",   prob:14, points:2},
+    {code:"NEF",   prob:12, points:5},
+    {code:"TAL",   prob:12, points:5},
+    {code:"ORT",   prob:10, points:9},
+    {code:"THUL",  prob:10, points:9},
+    {code:"SHAEL", prob:8,  points:14},
+    {code:"IO",    prob:8,  points:14},
+    {code:"LUM",   prob:4,  points:20},
+    {code:"JAH",   prob:4,  points:20},
+    {code:"BER",   prob:2,  points:27},
+    {code:"ZOD",   prob:2,  points:27},
+  ];
+  const RUNE_MAP = Object.fromEntries(RUNES.map(r=>[r.code,r]));
+
+  const GLYPHS = {
+    TIR:   "M30 8 L30 52 M30 8 L44 22 M30 8 L16 22",
+    ITH:   "M14 44 L30 12 L46 44 M22 30 L38 30",
+    NEF:   "M16 16 Q38 16 38 30 Q38 44 16 44",
+    TAL:   "M16 12 L44 12 M20 12 L20 48 L44 48 M20 30 L38 12",
+    ORT:   "M30 10 L18 30 Q18 48 30 48 Q42 48 42 30 Z",
+    THUL:  "M14 44 L30 10 L46 44 M20 32 L40 32",
+    SHAEL: "M22 8 Q34 20 22 30 Q34 40 22 52",
+    IO:    "M20 8 L20 40 Q20 52 32 52 M14 8 L28 8",
+    LUM:   "M30 10 Q46 10 46 26 Q46 42 30 42 Q18 42 18 32",
+    JAH:   "M14 12 L46 48 M46 12 L14 48",
+    BER:   "M18 10 L18 50 M18 10 Q40 10 40 22 Q40 32 18 32",
+    ZOD:   "M14 12 L46 12 L14 48 L46 48 M22 30 L38 30",
+    GOD:   "M30 6 L34 22 L50 22 L37 32 L42 48 L30 38 L18 48 L23 32 L10 22 L26 22 Z",
+  };
+
+  const RUNEWORDS = [
+    {id:"enigma", name:"Enigma", slot:"Chest Armor", recipe:["BER","NEF","THUL","ORT"],
+      effect:"Once per long rest, cast Teleport on yourself.",
+      quote:"It's a riddle wrapped in a mystery inside an enigma…"},
+    {id:"cling", name:"Cling", slot:"Gloves", recipe:["IO","NEF","ITH"],
+      effect:"Once per long rest, firmly attach your gloves to an object for 30 minutes. Passively +2 to Sleight of Hand checks.",
+      quote:"Loss of loving connection is coded by the human brain into a primal panic response."},
+    {id:"prism", name:"Prism", slot:"Necklace", recipe:["TIR","NEF","TAL"],
+      effect:"Once per long rest, change your eye colour until you use it again.",
+      quote:"Life is a painting, and you are the artist."},
+    {id:"rizz", name:"Silver Tongue of Rizz", slot:"Eyewear", recipe:["SHAEL","IO"],
+      effect:"Once per long rest, add 1d10 to a single Charisma-based check.",
+      quote:"One man's ways may be as good as another's, but we all like our own best."},
+    {id:"quicksilver", name:"Quicksilver", slot:"Harness / Bridle", recipe:["LUM","ORT","ITH"],
+      effect:"Any mount wearing this has its move speed doubled.",
+      quote:"Faster, faster, until the thrill of speed overcomes the fear of death."},
+    {id:"charger", name:"Charger", slot:"Harness / Bridle", recipe:["BER","THUL","TAL","SHAEL"],
+      effect:"When attached to a mount, the rider cannot be knocked off.",
+      quote:"When you have exhausted all possibilities, remember this: you haven't."},
+    {id:"precious", name:"Precious", slot:"Ring", recipe:["ZOD","LUM","THUL"],
+      effect:"Once per long rest, cast Invisibility on yourself. Each combat turn, roll a d20 — a 7 or less adds a Short-Term Madness effect for the fight.",
+      quote:"What makes something precious? Losing and finding it."},
+    {id:"hive", name:"Hive", slot:"Boots", recipe:["BER","LUM","ORT","ITH"],
+      effect:"Once per long rest, shrink to the size of an ant for 3 minutes.",
+      quote:"People, chained by monotony, afraid to think, clinging to certainties... they live like ants."},
+    {id:"starboard", name:"Starboard", slot:"Oar / Paddle", recipe:["IO","NEF","TIR"],
+      effect:"Once per day, discharge lightning into water within 30 feet. Targets: DC15 Con save, [caster level]d8 damage, half on success.",
+      quote:"What is a soul? It's like electricity - we don't really know what it is, but it's a force that can light the world."},
+    {id:"carotene", name:"Blade of Carotene", slot:"Sword", recipe:["IO","NEF","TIR"],
+      effect:"A sword of carrots. Grants Darkvision. Crits on 19 or 20 in the dark, plus 2d6 extra damage in the dark.",
+      quote:""},
+    {id:"folly", name:"Folly", slot:"Scarf", recipe:["ZOD","SHAEL","ORT"],
+      effect:"Increases Strength to 666,666 for one second — then you instantly die.",
+      quote:"Man's wisdom is his best friend; folly his worst enemy."},
+    {id:"insolence", name:"Insolence", slot:"Weapon", recipe:["LUM","SHAEL","ORT","TAL"],
+      effect:"Three times per long rest, gain advantage on attacks against characters over 150 years old.",
+      quote:"Youth is insolent; it is its right – its necessity; all assertion in this world of doubts is a defiance, is an insolence…"},
+    {id:"sage", name:"Sage", slot:"Earrings", recipe:["TIR","NEF","ORT","SHAEL"],
+      effect:"Once per day, understand (but not speak) the language of animals for 3 minutes.",
+      quote:"The wise understand that knowing animals allows us to better know ourselves."},
+    {id:"lark", name:"Lark", slot:"Scarf", recipe:["ITH","TAL","THUL","IO"],
+      effect:"Once per day, speak to (but not understand) animals for 3 minutes.",
+      quote:"I may look normal, but believe me, I talk to animals and wait for them to reply."},
+    {id:"inferno", name:"Inferno", slot:"Dish", recipe:["ZOD","IO","THUL"],
+      effect:"Once per long rest, whoever eats from this dish can cast Dragon's Breath — DC15 Con save or 2d6 fire damage.",
+      quote:"I may look normal, but believe me, I talk to animals and wait for them to reply."},
+    {id:"socks", name:"Socks of Blocks", slot:"Socks", recipe:["ZOD","JAH","IO","TAL"],
+      effect:"Once per long rest, convert an item smaller than a microwave into brick-sized, reassemblable blocks for 1 hour.",
+      quote:"Socks of blocks and blocks of socks."},
+    {id:"north", name:"Invigorated by the North", slot:"Pendant / Necklace", recipe:["LUM","SHAEL","TAL"],
+      effect:"In cold environments, you take no exhaustion.",
+      quote:"Brrr, it's NOT cold in here."},
+    {id:"bramble", name:"Bramble", slot:"Leg Armor", recipe:["SHAEL","ORT","NEF","TIR"],
+      effect:"Attackers who strike you take 1d4 piercing damage. Once per day, cast Entangle.",
+      quote:"Just like the dead limbs and overgrowth of trees, it is superfluous. Let it all go."},
+    {id:"crescent", name:"Crescent Moon", slot:"Musical Instrument", recipe:["BER","SHAEL","TAL","ITH"],
+      effect:"Once per long rest, cast Summon Spirit Wolf.",
+      quote:"For the strength of the pack is the wolf. And the strength of the wolf is the pack."},
+    {id:"harmony", name:"Harmony", slot:"Head Armor", recipe:["LUM","IO","TAL","TIR"],
+      effect:"Once per long rest, cast Mass Healing Word on targets of your choosing.",
+      quote:"Music doesn't get in. Music is already in. Music simply uncovers what is there."},
+    {id:"summarmaekir", name:"Summarmækir", slot:"Weapon", recipe:["GOD","ZOD","JAH","IO"],
+      effect:"+3 sword. Can be thrown and guided (+½ exhaustion to the thrower on a hit). Once per long rest, cast Sunburst.",
+      quote:"Yes, child, this weapon WAS held by the god Frey. It warms the wielder like a Summer's day."},
+    {id:"ransnet", name:"Ran's Net", slot:"Weapon", recipe:["GOD","BER","LUM","SHAEL"],
+      effect:"Once per day, cast a magic net on a target (DC20 Dex save to escape). Each turn restrained, the target suffers Vampiric Touch before acting.",
+      quote:"Ethical fishing at its finest. — Senlin"},
+    {id:"herofeller", name:"Herofeller", slot:"Scabbard", recipe:["TIR","TAL","ORT","IO"],
+      effect:"The first attack with a weapon drawn from this scabbard deals an extra 1d4 poison damage for 10 turns. Refills on a long rest.",
+      quote:"This doesn't feel sanitary."},
+    {id:"coolth", name:"Coolth", slot:"Pillow", recipe:["TIR","THUL","SHAEL","LUM"],
+      effect:"Perpetually cold on both sides. Once per 3 days, treat a short rest as a long rest.",
+      quote:"I may look normal, but believe me, I talk to animals and wait for them to reply."},
+    {id:"misfortune", name:"Amulet of Misfortune", slot:"Necklace", recipe:["TIR","SHAEL","THUL","NEF"],
+      effect:"Once per long rest, create a blazing light and cast Light Binding.",
+      quote:"I saw the light, I saw the light. No more darkness, no more night."},
+    {id:"stuffed", name:"Stuffed Buddy", slot:"Doll", recipe:["ITH","NEF","THUL","IO"],
+      effect:"Tuck this doll in for 3 nights running with your runes inside — it wakes as your familiar.",
+      quote:"Who's my lil guy? Who's my lil' buddy?"},
+  ];
+  const SOUR_KEY_BASE = ["SHAEL","IO","JAH","BER"];
+  const SOUR_KEY_SIZES = [
+    {label:"Small (2d6, ×1)", mult:1},
+    {label:"Medium (3d6, ×2)", mult:2},
+    {label:"Large (4d6, ×3)", mult:3},
+  ];
+
+  /* ============ API layer ============ */
+  const API_URL_KEY = "runicApiUrl";
+  function getApiUrl(){ return localStorage.getItem(API_URL_KEY) || ""; }
+  function setApiUrl(u){ localStorage.setItem(API_URL_KEY, u); }
+
+  async function api(action, payload){
+    const url = getApiUrl();
+    if(!url) throw new Error("No backend connected yet. Click the gear icon to set it up.");
+    // Content-Type text/plain avoids a CORS preflight against Apps Script.
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {"Content-Type": "text/plain;charset=utf-8"},
+      body: JSON.stringify(Object.assign({action}, payload||{}))
+    });
+    if(!res.ok) throw new Error("Network error ("+res.status+"). Check the backend URL.");
+    const json = await res.json();
+    if(!json.ok) throw new Error(json.error || "Unknown server error.");
+    return json.data;
+  }
+
+  async function checkConnection(){
+    const dot = document.getElementById("syncDot");
+    const text = document.getElementById("syncText");
+    const url = getApiUrl();
+    if(!url){
+      dot.className = "sync-dot bad";
+      text.textContent = "No backend connected — click the gear icon above.";
+      return;
+    }
+    dot.className = "sync-dot";
+    text.textContent = "Connecting…";
+    try{
+      const r = await fetch(url, {method:"GET"});
+      const j = await r.json();
+      if(j && j.ok){
+        dot.className = "sync-dot ok";
+        text.textContent = "Connected to shared class database.";
+      } else {
+        throw new Error("bad response");
+      }
+    }catch(e){
+      dot.className = "sync-dot bad";
+      text.textContent = "Couldn't reach the backend. Check the URL in settings.";
+    }
+  }
+
+  /* ============ Settings overlay ============ */
+  const settingsOverlay = document.getElementById("settingsOverlay");
+  const apiUrlInput = document.getElementById("apiUrlInput");
+  function openSettings(){ apiUrlInput.value = getApiUrl(); settingsOverlay.style.display="flex"; }
+  function closeSettings(){ settingsOverlay.style.display="none"; }
+  document.getElementById("settingsBtn").addEventListener("click", openSettings);
+  document.getElementById("closeSettingsBtn").addEventListener("click", closeSettings);
+  document.getElementById("saveApiUrlBtn").addEventListener("click", async ()=>{
+    const v = apiUrlInput.value.trim();
+    const msg = document.getElementById("settingsMsg");
+    if(!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(v)){
+      msg.innerHTML = `<div class="msg error">That doesn't look like an Apps Script web app URL (should end in /exec).</div>`;
+      return;
+    }
+    setApiUrl(v);
+    msg.innerHTML = `<div class="msg info">Checking connection…</div>`;
+    await checkConnection();
+    msg.innerHTML = `<div class="msg success">Saved.</div>`;
+    closeSettings();
+    renderAll();
+  });
+  if(!getApiUrl()) openSettings();
+
+  /* ============ Glyph render ============ */
+  function glyphSVG(code, extraStyle){
+    const path = GLYPHS[code] || GLYPHS.TIR;
+    const stroke = code === "GOD" ? "var(--god)" : "var(--amber-bright)";
+    return `<svg viewBox="0 0 60 60" ${extraStyle||""}><path d="${path}" stroke="${stroke}" stroke-width="4.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+  }
+
+  /* ============ Current student ============ */
+  const nameInput = document.getElementById("studentName");
+  nameInput.value = localStorage.getItem("runicCurrentStudent") || "";
+  let nameDebounce = null;
+  nameInput.addEventListener("input", ()=>{
+    localStorage.setItem("runicCurrentStudent", nameInput.value);
+    clearTimeout(nameDebounce);
+    nameDebounce = setTimeout(()=>{ studentCache = null; updateLockIcon(); renderAll(); }, 400);
+  });
+  function currentName(){ return nameInput.value.trim(); }
+
+  /* ============ Per-adventurer PIN auth ============ */
+  // A student's 4-digit PIN, once verified, is cached in sessionStorage
+  // (per browser tab session) so they aren't re-prompted on every click.
+  // The server independently re-checks the PIN on every roll/transform/
+  // craft call regardless — this cache is only a UX convenience.
+  function normName(name){ return String(name).trim().toLowerCase(); }
+  function authMapAll(){ try{ return JSON.parse(sessionStorage.getItem("runicAuthPins")||"{}"); }catch(e){ return {}; } }
+  function getStoredAuthPin(name){ return authMapAll()[normName(name)] || null; }
+  function setStoredAuthPin(name, pin){ const m = authMapAll(); m[normName(name)] = pin; sessionStorage.setItem("runicAuthPins", JSON.stringify(m)); }
+  function clearStoredAuthPin(name){ const m = authMapAll(); delete m[normName(name)]; sessionStorage.setItem("runicAuthPins", JSON.stringify(m)); }
+
+  function updateLockIcon(){
+    const icon = document.getElementById("lockIcon");
+    const name = currentName();
+    if(!name){ icon.textContent="🔒"; icon.title="Enter a name"; icon.classList.remove("unlocked"); return; }
+    if(getStoredAuthPin(name)){ icon.textContent="🔓"; icon.title="Unlocked on this device — click to lock"; icon.classList.add("unlocked"); }
+    else { icon.textContent="🔒"; icon.title="Locked — click to unlock"; icon.classList.remove("unlocked"); }
+  }
+  document.getElementById("lockIcon").addEventListener("click", async ()=>{
+    const name = currentName();
+    if(!name) return;
+    if(getStoredAuthPin(name)){
+      if(confirm(`Lock ${name}'s account on this device? You'll need the PIN again next time.`)){
+        clearStoredAuthPin(name);
+        updateLockIcon();
+      }
+    } else {
+      await ensureUnlocked(name);
+      updateLockIcon();
+    }
+  });
+
+  let pinModalResolve = null;
+  function openPinModal(mode, name){
+    return new Promise((resolve)=>{
+      pinModalResolve = resolve;
+      const overlay = document.getElementById("pinOverlay");
+      document.getElementById("pinModalTitle").textContent = mode==="claim" ? "Set your PIN" : "Enter your PIN";
+      document.getElementById("pinModalLede").textContent = mode==="claim"
+        ? `Choose a 4-digit PIN to protect ${name}'s runes. You'll enter it each time you roll, transform, or craft.`
+        : `Enter ${name}'s 4-digit PIN to continue.`;
+      document.getElementById("pinModalInput").value = "";
+      document.getElementById("pinModalMsg").innerHTML = "";
+      overlay.dataset.mode = mode;
+      overlay.dataset.name = name;
+      overlay.style.display = "flex";
+      document.getElementById("pinModalInput").focus();
+    });
+  }
+  function closePinModal(result){
+    document.getElementById("pinOverlay").style.display = "none";
+    if(pinModalResolve){ const r = pinModalResolve; pinModalResolve = null; r(result); }
+  }
+  document.getElementById("pinModalCancel").addEventListener("click", ()=>closePinModal(null));
+  document.getElementById("pinModalInput").addEventListener("input", e=>{ e.target.value = e.target.value.replace(/[^0-9]/g,"").slice(0,4); });
+  document.getElementById("pinModalInput").addEventListener("keydown", e=>{ if(e.key==="Enter") document.getElementById("pinModalSubmit").click(); });
+  document.getElementById("pinModalSubmit").addEventListener("click", async ()=>{
+    const overlay = document.getElementById("pinOverlay");
+    const mode = overlay.dataset.mode;
+    const name = overlay.dataset.name;
+    const pin = document.getElementById("pinModalInput").value;
+    const msg = document.getElementById("pinModalMsg");
+    if(!/^\d{4}$/.test(pin)){ msg.innerHTML = `<div class="msg error">Enter exactly 4 digits.</div>`; return; }
+    msg.innerHTML = `<div class="msg info">Checking…</div>`;
+    try{
+      if(mode==="claim") await api("claimPin", {name, authPin: pin});
+      else await api("verifyPin", {name, authPin: pin});
+      setStoredAuthPin(name, pin);
+      closePinModal(pin);
+    }catch(err){
+      msg.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
+    }
+  });
+
+  // Returns the student's PIN once unlocked (from cache or by prompting),
+  // or null if the person cancels.
+  async function ensureUnlocked(name){
+    if(!name) return null;
+    const stored = getStoredAuthPin(name);
+    if(stored) return stored;
+    let hasPin = false;
+    try{
+      const check = await api("checkName", {name});
+      hasPin = check.hasPin;
+    }catch(err){
+      alert(err.message);
+      return null;
+    }
+    const result = await openPinModal(hasPin ? "verify" : "claim", name);
+    updateLockIcon();
+    return result;
+  }
+
+  let studentCache = null; // {inventory, crafted} for currentName()
+  async function loadStudent(force){
+    const name = currentName();
+    if(!name) return null;
+    if(studentCache && !force) return studentCache;
+    studentCache = await api("getStudent", {name});
+    return studentCache;
+  }
+
+  /* ============ Tabs ============ */
+  const tabsNav = document.getElementById("tabs");
+  tabsNav.addEventListener("click", e=>{
+    const btn = e.target.closest("button[data-tab]");
+    if(!btn) return;
+    document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelectorAll(".tabpane").forEach(p=>p.style.display="none");
+    document.getElementById("tab-"+btn.dataset.tab).style.display="block";
+    renderAll();
+  });
+
+  /* ============ ROLL ============ */
+  const rollBtn = document.getElementById("rollBtn");
+  const pinInput = document.getElementById("pinInput");
+  pinInput.addEventListener("input", ()=>{ pinInput.value = pinInput.value.replace(/[^0-9]/g,"").slice(0,6); });
+
+  rollBtn.addEventListener("click", async ()=>{
+    const msgEl = document.getElementById("rollMsg");
+    const revealEl = document.getElementById("rollReveal");
+    msgEl.innerHTML = ""; revealEl.innerHTML = "";
+    const name = currentName();
+    const code = pinInput.value.trim();
+    if(!name){ msgEl.innerHTML = `<div class="msg error">Enter your adventurer name up top first.</div>`; return; }
+    if(code.length !== 6){ msgEl.innerHTML = `<div class="msg error">Milestone codes are six digits.</div>`; return; }
+    const authPin = await ensureUnlocked(name);
+    if(!authPin) return;
+    rollBtn.disabled = true;
+    msgEl.innerHTML = `<div class="msg info">Rolling…</div>`;
+    try{
+      const result = await api("roll", {name, code, authPin});
+      studentCache = result.student;
+      msgEl.innerHTML = `<div class="msg success">Three runes forged for ${escapeHTML(name)}!</div>`;
+      revealEl.innerHTML = result.drawn.map(code=>{
+        const r = RUNE_MAP[code];
+        return `<div class="reveal-card">${glyphSVG(code)}<div class="name">${code}</div><div class="pts">${r.points} pts</div></div>`;
+      }).join("");
+      pinInput.value = "";
+      renderAll();
+    }catch(err){
+      msgEl.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
+    }finally{
+      rollBtn.disabled = false;
+    }
+  });
+
+  /* ============ INVENTORY ============ */
+  document.getElementById("refreshInvBtn").addEventListener("click", async ()=>{ await loadStudent(true); renderInventory(); });
+
+  async function renderInventory(){
+    const grid = document.getElementById("invGrid");
+    const list = document.getElementById("craftedList");
+    const name = currentName();
+    if(!name){
+      grid.innerHTML = `<p class="lede">Enter your adventurer name above to see your runes.</p>`;
+      list.innerHTML = "";
+      return;
+    }
+    grid.innerHTML = `<p class="lede">Loading…</p>`;
+    let student;
+    try{ student = await loadStudent(); }
+    catch(err){ grid.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`; return; }
+    if(!student) return;
+
+    const allCodes = [...RUNES.map(r=>r.code), "GOD"];
+    grid.innerHTML = allCodes.map(code=>{
+      const qty = student.inventory[code]||0;
+      const pts = code==="GOD" ? "—" : RUNE_MAP[code].points+" pts";
+      return `<div class="rune-card ${qty===0?'own-zero':''}">
+        <div class="rune-stone ${code==='GOD'?'god':''}">${glyphSVG(code)}<div class="count">${qty}</div></div>
+        <div class="info"><div class="name">${code}${code==='GOD'?' Rune':''}</div><div class="meta">${pts}</div></div>
+      </div>`;
+    }).join("");
+
+    if(!student.crafted.length){
+      list.innerHTML = `<p class="lede">No runewords forged yet — visit the Craft tab once you have the runes.</p>`;
+    } else {
+      list.innerHTML = student.crafted.slice().reverse().map(c=>{
+        const dt = new Date(c.at);
+        return `<div class="crafted-item"><span class="n">${escapeHTML(c.name)}</span><span>${dt.toLocaleDateString()}</span></div>`;
+      }).join("");
+    }
+  }
+
+  /* ============ TRANSFORM ============ */
+  let transformTarget = null;
+  let transformSelection = {};
+
+  function renderTargetRow(){
+    const row = document.getElementById("targetRow");
+    row.innerHTML = RUNES.map(r=>{
+      return `<div class="target-pick ${transformTarget===r.code?'active':''}" data-code="${r.code}">
+        ${glyphSVG(r.code)}<span>${r.code} · ${r.points}pt</span>
+      </div>`;
+    }).join("");
+    row.querySelectorAll(".target-pick").forEach(el=>{
+      el.addEventListener("click", ()=>{
+        transformTarget = el.dataset.code;
+        transformSelection = {};
+        renderTransform();
+      });
+    });
+  }
+
+  async function renderTransform(){
+    renderTargetRow();
+    const body = document.getElementById("transformBody");
+    const name = currentName();
+    if(!name){ body.innerHTML = `<p class="lede">Enter your adventurer name above first.</p>`; return; }
+    if(!transformTarget){ body.innerHTML = `<p class="lede">Pick a target rune above to begin.</p>`; return; }
+
+    body.innerHTML = `<p class="lede">Loading…</p>`;
+    let student;
+    try{ student = await loadStudent(); }
+    catch(err){ body.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`; return; }
+    if(!student) return;
+
+    const targetPts = RUNE_MAP[transformTarget].points;
+    let total = 0;
+    const rows = RUNES.filter(r=>r.code!==transformTarget || student.inventory[r.code] > 0).map(r=>{
+      const owned = student.inventory[r.code]||0;
+      const sel = transformSelection[r.code]||0;
+      total += sel * r.points;
+      return `<div class="row between" style="padding:8px 0;border-bottom:1px dashed var(--stone-line);">
+        <div class="row" style="gap:10px;">
+          <div class="rune-stone" style="width:38px;height:38px;">${glyphSVG(r.code)}</div>
+          <div><div class="name" style="font-family:'Cinzel',serif;font-size:0.85rem;">${r.code}</div><div class="meta" style="font-size:0.72rem;color:var(--ink-faint);">${r.points} pts &middot; own ${owned}</div></div>
+        </div>
+        <div class="stepper">
+          <button data-code="${r.code}" data-dir="-1" ${sel<=0?'disabled':''}>−</button>
+          <span class="n">${sel}</span>
+          <button data-code="${r.code}" data-dir="1" ${sel>=owned?'disabled':''}>+</button>
+        </div>
+      </div>`;
+    }).join("");
+
+    const pct = Math.min(100, Math.round((total/targetPts)*100));
+    const ready = total >= targetPts;
+
+    body.innerHTML = `
+      <h3 style="font-size:0.9rem;color:var(--ink-dim);margin:18px 0 4px;">2 &middot; Select runes to destroy (need ≥ ${targetPts} pts)</h3>
+      <div>${rows}</div>
+      <div class="progress-bar"><div style="width:${pct}%"></div></div>
+      <div class="row between">
+        <span style="color:${ready?'var(--fjord)':'var(--ink-dim)'};font-family:'Cinzel',serif;font-size:0.85rem;">${total} / ${targetPts} pts</span>
+        <button class="btn" id="doTransformBtn" ${ready?'':'disabled'}>Transform into ${transformTarget}</button>
+      </div>
+      <div id="transformMsg"></div>
+    `;
+
+    body.querySelectorAll(".stepper button").forEach(b=>{
+      b.addEventListener("click", ()=>{
+        const code = b.dataset.code;
+        const dir = parseInt(b.dataset.dir,10);
+        transformSelection[code] = Math.max(0,(transformSelection[code]||0)+dir);
+        renderTransform();
+      });
+    });
+
+    const doBtn = document.getElementById("doTransformBtn");
+    if(doBtn){
+      doBtn.addEventListener("click", async ()=>{
+        const authPin = await ensureUnlocked(name);
+        if(!authPin) return;
+        doBtn.disabled = true;
+        const msgEl = document.getElementById("transformMsg");
+        msgEl.innerHTML = `<div class="msg info">Transforming…</div>`;
+        try{
+          const updated = await api("transform", {name, target: transformTarget, selection: transformSelection, authPin});
+          studentCache = updated;
+          transformSelection = {};
+          msgEl.innerHTML = `<div class="msg success">Forged one ${transformTarget} rune!</div>`;
+          renderTransform();
+          renderInventory();
+        }catch(err){
+          msgEl.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
+          doBtn.disabled = false;
+        }
+      });
+    }
+  }
+
+  /* ============ CRAFT ============ */
+  function needsFor(recipe){
+    const need = {};
+    recipe.forEach(c => need[c] = (need[c]||0)+1);
+    return need;
+  }
+
+  async function renderCraft(){
+    const grid = document.getElementById("itemGrid");
+    const name = currentName();
+    if(!name){ grid.innerHTML = `<p class="lede">Enter your adventurer name above first.</p>`; return; }
+    grid.innerHTML = `<p class="lede">Loading…</p>`;
+    let student;
+    try{ student = await loadStudent(); }
+    catch(err){ grid.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`; return; }
+    if(!student) return;
+
+    let cards = RUNEWORDS.map(item=>{
+      const need = needsFor(item.recipe);
+      let can = true;
+      const chips = Object.entries(need).map(([code,qty])=>{
+        const owned = student.inventory[code]||0;
+        const have = owned >= qty;
+        if(!have) can = false;
+        const cls = code==="GOD" ? "god" : (have ? "have" : "missing");
+        return `<span class="req-chip ${cls}">${glyphSVG(code)} ${code}${qty>1?' ×'+qty:''}</span>`;
+      }).join("");
+      return {item, can, chips};
+    });
+
+    grid.innerHTML = cards.map(({item,can,chips})=>`
+      <div class="item-card ${can?'craftable':''}" data-id="${item.id}">
+        <div class="head"><span class="name">${item.name}</span><span class="slot">${item.slot}</span></div>
+        <div class="effect">${item.effect}</div>
+        ${item.quote?`<div class="quote">"${item.quote}"</div>`:""}
+        <div class="recipe">${chips}</div>
+        <button class="btn small" data-craft="${item.id}" ${can?'':'disabled'}>Craft</button>
+      </div>
+    `).join("") + renderSourKeyCard(student);
+
+    grid.querySelectorAll("button[data-craft]").forEach(b=>{
+      b.addEventListener("click", ()=>craftItem(b.dataset.craft, name));
+    });
+    const sourBtn = grid.querySelector("[data-craft-sour]");
+    if(sourBtn) sourBtn.addEventListener("click", ()=>craftSourKey(name));
+  }
+
+  function renderSourKeyCard(student){
+    const sel = document.getElementById("sourSizeSel");
+    const currentMult = sel ? parseInt(sel.value,10) : 1;
+    const need = SOUR_KEY_BASE.reduce((acc,c)=>{ acc[c]=(acc[c]||0)+currentMult; return acc; },{});
+    let can = true;
+    const chips = Object.entries(need).map(([code,qty])=>{
+      const owned = student.inventory[code]||0;
+      const have = owned>=qty;
+      if(!have) can = false;
+      return `<span class="req-chip ${have?'have':'missing'}">${glyphSVG(code)} ${code} ×${qty}</span>`;
+    }).join("");
+    return `
+      <div class="item-card ${can?'craftable':''}">
+        <div class="head"><span class="name">Sour Key</span><span class="slot">Food</span></div>
+        <div class="effect">Once per long rest, summon a giant gummy worm. Size scales damage and rune cost.</div>
+        <div class="quote"></div>
+        <div class="row" style="gap:8px;">
+          <select id="sourSizeSel">
+            ${SOUR_KEY_SIZES.map((s,i)=>`<option value="${s.mult}" ${s.mult===currentMult?'selected':''}>${s.label}</option>`).join("")}
+          </select>
+        </div>
+        <div class="recipe">${chips}</div>
+        <button class="btn small" data-craft-sour="1" ${can?'':'disabled'}>Craft</button>
+      </div>
+    `;
+  }
+
+  async function craftItem(id, name){
+    const item = RUNEWORDS.find(i=>i.id===id);
+    if(!item) return;
+    const authPin = await ensureUnlocked(name);
+    if(!authPin) return;
+    try{
+      const updated = await api("craft", {name, itemId:id, authPin});
+      studentCache = updated;
+      renderCraft();
+      renderInventory();
+    }catch(err){
+      alert(err.message);
+      renderCraft();
+    }
+  }
+
+  async function craftSourKey(name){
+    const sel = document.getElementById("sourSizeSel");
+    const mult = sel ? parseInt(sel.value,10) : 1;
+    const authPin = await ensureUnlocked(name);
+    if(!authPin) return;
+    try{
+      const updated = await api("craftSour", {name, mult, authPin});
+      studentCache = updated;
+      renderCraft();
+      renderInventory();
+    }catch(err){
+      alert(err.message);
+      renderCraft();
+    }
+  }
+  document.addEventListener("change", e=>{
+    if(e.target && e.target.id==="sourSizeSel") renderCraft();
+  });
+
+  /* ============ CODEX ============ */
+  function renderCodex(){
+    const rt = document.getElementById("codexTable");
+    rt.innerHTML = RUNES.map(r=>`
+      <tr><td><div class="row" style="gap:8px;"><div class="rune-stone" style="width:32px;height:32px;">${glyphSVG(r.code)}</div>${r.code}</div></td><td>${r.prob}%</td><td>${r.points} pts</td></tr>
+    `).join("");
+
+    const ct = document.getElementById("compendiumTable");
+    const rows = RUNEWORDS.map(i=>`<tr><td>${i.name}</td><td>${i.slot}</td><td>${i.recipe.join(" + ")}</td></tr>`);
+    rows.push(`<tr><td>Sour Key</td><td>Food</td><td>Shael + Io + Jah + Ber (×1/2/3 by size)</td></tr>`);
+    ct.innerHTML = rows.join("");
+  }
+
+  /* ============ TEACHER ============ */
+  const TEACHER_KEY = "runicTeacherPass";
+  function teacherPass(){ return sessionStorage.getItem(TEACHER_KEY); }
+  function isTeacherUnlocked(){ return !!teacherPass(); }
+
+  document.getElementById("teacherUnlockBtn").addEventListener("click", async ()=>{
+    const entered = document.getElementById("teacherPass").value;
+    const msg = document.getElementById("teacherLockMsg");
+    msg.innerHTML = `<div class="msg info">Checking…</div>`;
+    try{
+      try{
+        await api("teacherLogin", {pass: entered});
+      }catch(err){
+        if(String(err.message).indexOf("use setup first") !== -1){
+          await api("teacherSetup", {pass: entered});
+        } else {
+          throw err;
+        }
+      }
+      sessionStorage.setItem(TEACHER_KEY, entered);
+      document.getElementById("teacherPass").value = "";
+      msg.innerHTML = "";
+      renderTeacher();
+    }catch(err){
+      msg.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
+    }
+  });
+
+  document.getElementById("teacherLockBtn").addEventListener("click", ()=>{
+    sessionStorage.removeItem(TEACHER_KEY);
+    renderTeacher();
+  });
+
+  document.getElementById("genPinBtn").addEventListener("click", async ()=>{
+    const disp = document.getElementById("newPinDisplay");
+    disp.innerHTML = `<div class="msg info">Generating…</div>`;
+    try{
+      const result = await api("teacherGeneratePin", {pass: teacherPass()});
+      disp.innerHTML = `<div class="pin-display">${result.code}</div>`;
+      renderTeacherPins();
+    }catch(err){
+      disp.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
+    }
+  });
+
+  document.getElementById("grantGodBtn").addEventListener("click", async ()=>{
+    const nameEl = document.getElementById("godRuneStudent");
+    const target = nameEl.value.trim();
+    const msg = document.getElementById("grantGodMsg");
+    if(!target){ msg.innerHTML = `<div class="msg error">Enter a student name.</div>`; return; }
+    msg.innerHTML = `<div class="msg info">Granting…</div>`;
+    try{
+      await api("teacherGrantGod", {pass: teacherPass(), name: target});
+      msg.innerHTML = `<div class="msg success">Granted a God Rune to ${escapeHTML(target)}.</div>`;
+      nameEl.value = "";
+      if(target.toLowerCase() === currentName().toLowerCase()) studentCache = null;
+      renderTeacherStudents();
+    }catch(err){
+      msg.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
+    }
+  });
+
+  document.getElementById("resetAllBtn").addEventListener("click", async ()=>{
+    if(!confirm("This will erase every student's runes, crafted items, and PIN history for the whole class. Continue?")) return;
+    if(!confirm("Really sure? This cannot be undone.")) return;
+    try{
+      await api("teacherReset", {pass: teacherPass()});
+      studentCache = null;
+      renderAll();
+    }catch(err){
+      alert(err.message);
+    }
+  });
+
+  document.getElementById("refreshPinsBtn").addEventListener("click", renderTeacherPins);
+  document.getElementById("refreshStudentsBtn").addEventListener("click", renderTeacherStudents);
+
+  async function renderTeacherPins(){
+    const table = document.getElementById("pinHistoryTable");
+    table.innerHTML = `<tr><td colspan="3" style="color:var(--ink-faint);">Loading…</td></tr>`;
+    try{
+      const pins = await api("teacherListPins", {pass: teacherPass()});
+      table.innerHTML = pins.length ? pins.map(p=>`
+        <tr><td style="font-family:'Cinzel',serif;letter-spacing:0.1em;">${p.code}</td>
+        <td><span class="tag ${p.used?'used':'unused'}">${p.used?'redeemed':'unused'}</span></td>
+        <td>${p.usedBy?escapeHTML(p.usedBy):'—'}</td></tr>
+      `).join("") : `<tr><td colspan="3" style="color:var(--ink-faint);">No PINs generated yet.</td></tr>`;
+    }catch(err){
+      table.innerHTML = `<tr><td colspan="3" class="msg error">${escapeHTML(err.message)}</td></tr>`;
+    }
+  }
+
+  async function renderTeacherStudents(){
+    const table = document.getElementById("studentsTable");
+    table.innerHTML = `<tr><td colspan="3" style="color:var(--ink-faint);">Loading…</td></tr>`;
+    try{
+      const students = await api("teacherListStudents", {pass: teacherPass()});
+      table.innerHTML = students.length ? students.map(s=>`
+        <tr><td>${escapeHTML(s.name)}</td><td>${s.total}</td><td>${s.craftedCount}</td>
+        <td><span class="tag ${s.hasPin?'used':'unused'}">${s.hasPin?'set':'not set'}</span></td>
+        <td>${s.hasPin?`<button class="btn small ghost" data-resetpin="${escapeHTML(s.name)}">Reset PIN</button>`:''}</td></tr>
+      `).join("") : `<tr><td colspan="5" style="color:var(--ink-faint);">No students yet.</td></tr>`;
+    }catch(err){
+      table.innerHTML = `<tr><td colspan="5" class="msg error">${escapeHTML(err.message)}</td></tr>`;
+    }
+  }
+  document.getElementById("studentsTable").addEventListener("click", async e=>{
+    const btn = e.target.closest("[data-resetpin]");
+    if(!btn) return;
+    const name = btn.dataset.resetpin;
+    if(!confirm(`Reset the PIN for ${name}? They'll set a new one next time they roll, transform, or craft.`)) return;
+    try{
+      await api("teacherResetPin", {pass: teacherPass(), name});
+      clearStoredAuthPin(name);
+      if(normName(name) === normName(currentName())) updateLockIcon();
+      renderTeacherStudents();
+    }catch(err){
+      alert(err.message);
+    }
+  });
+
+  function renderTeacher(){
+    const unlocked = isTeacherUnlocked();
+    document.getElementById("teacherLockPanel").style.display = unlocked ? "none" : "block";
+    document.getElementById("teacherPanels").style.display = unlocked ? "block" : "none";
+    if(!unlocked) return;
+    renderTeacherPins();
+    renderTeacherStudents();
+  }
+
+  /* ============ util ============ */
+  function escapeHTML(s){
+    return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function renderAll(){
+    renderInventory();
+    renderTransform();
+    renderCraft();
+    renderCodex();
+    renderTeacher();
+  }
+
+  checkConnection();
+  updateLockIcon();
+  renderAll();
+})();
+</script>
+</body>
+</html>
