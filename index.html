@@ -173,13 +173,39 @@
   .reveal-row{display:flex;gap:18px;margin-top:24px;flex-wrap:wrap;}
   .reveal-card{
     background:var(--stone);border:1px solid var(--amber);border-radius:var(--radius);
-    padding:16px;text-align:center;width:130px;
-    animation:flip .5s ease;
+    padding:16px;text-align:center;width:130px;position:relative;
+    animation: revealPop 0.55s steps(10) both;
+    animation-delay: var(--d, 0s);
   }
-  @keyframes flip{from{transform:rotateY(90deg);opacity:0;}to{transform:rotateY(0);opacity:1;}}
-  .reveal-card svg{width:44px;height:44px;margin-bottom:8px;}
+  @keyframes revealPop{
+    0%{opacity:0; transform:scale(0.4) translateY(6px);}
+    55%{opacity:1; transform:scale(1.12) translateY(-2px);}
+    100%{opacity:1; transform:scale(1) translateY(0);}
+  }
+  .rune-icon-wrap{position:relative; display:inline-block;}
+  .reveal-card .glyph svg{width:44px;height:44px;margin-bottom:8px;display:block;}
   .reveal-card .name{font-family:'Cinzel',serif;color:var(--amber-bright);}
   .reveal-card .pts{color:var(--ink-faint);font-size:0.78rem;margin-top:2px;}
+
+  /* 8-bit sparkle burst: a handful of blocky pixel-stars fly outward from
+     the rune the instant its reveal-card pops in. steps() timing (instead
+     of ease) is what gives them their chunky, retro-game feel rather than
+     a smooth modern particle effect. */
+  .spark{
+    position:absolute; top:50%; left:50%; width:0; height:0;
+    pointer-events:none;
+    animation: sparkPop 0.6s steps(6,jump-end) both;
+    animation-delay: var(--d, 0s);
+  }
+  .spark svg{
+    position:absolute; top:-5px; left:-5px; width:10px; height:10px;
+    image-rendering: pixelated;
+  }
+  @keyframes sparkPop{
+    0%{ transform:translate(0,0) scale(0); opacity:0; }
+    20%{ opacity:1; transform:translate(0,0) scale(1); }
+    100%{ transform:translate(var(--tx,0), var(--ty,0)) scale(0.4); opacity:0; }
+  }
 
   .target-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;}
   .target-pick{
@@ -693,6 +719,43 @@
     return `<svg viewBox="0 0 60 60" ${extraStyle||""}><path d="${path}" stroke="${stroke}" stroke-width="4.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
   }
 
+  /* ============ Roll reveal: fade-in cards + 8-bit sparkle burst ============ */
+  // A tiny blocky pixel-star (crisp edges, no anti-aliasing) used for the
+  // retro sparkle effect. Kept as a plain "+" of 2x2 squares so it reads
+  // as pixel art at 10x10px rather than a smooth vector star.
+  function pixelSparkSVG(color){
+    return `<svg viewBox="0 0 8 8" shape-rendering="crispEdges">
+      <rect x="3" y="0" width="2" height="2" fill="${color}"/>
+      <rect x="3" y="6" width="2" height="2" fill="${color}"/>
+      <rect x="0" y="3" width="2" height="2" fill="${color}"/>
+      <rect x="6" y="3" width="2" height="2" fill="${color}"/>
+      <rect x="3" y="3" width="2" height="2" fill="${color}"/>
+    </svg>`;
+  }
+  const SPARK_PALETTE = ["#eec27a","#ffffff","#7fd8c9","#d3a34e"];
+  const SPARK_DIRS = [[-26,-22],[26,-24],[-30,6],[30,4],[-12,-32],[14,-30],[0,-38]];
+  function sparkleBurstHTML(baseDelayMs){
+    return SPARK_DIRS.map((d,i)=>{
+      const color = SPARK_PALETTE[i % SPARK_PALETTE.length];
+      const delay = baseDelayMs + 120 + i*35;
+      return `<span class="spark" style="--tx:${d[0]}px;--ty:${d[1]}px;--d:${delay}ms;">${pixelSparkSVG(color)}</span>`;
+    }).join("");
+  }
+  // Builds one reveal-card, staggered by index so multiple runes (e.g. a
+  // 3-rune Roll) cascade in one after another rather than popping at once.
+  function revealCardHTML(code, index){
+    const r = RUNE_MAP[code];
+    const delay = (index||0) * 140;
+    return `<div class="reveal-card" style="--d:${delay}ms;">
+      <span class="rune-icon-wrap">
+        <span class="glyph">${glyphSVG(code)}</span>
+        ${sparkleBurstHTML(delay)}
+      </span>
+      <div class="name">${code}</div>
+      <div class="pts">${r.points} pts</div>
+    </div>`;
+  }
+
   /* ============ Current student ============ */
   const nameInput = document.getElementById("studentName");
   nameInput.value = localStorage.getItem("runicCurrentStudent") || "";
@@ -839,10 +902,7 @@
       const result = await api("roll", {name, code, authPin});
       studentCache = result.student;
       msgEl.innerHTML = `<div class="msg success">Three runes forged for ${escapeHTML(name)}!</div>`;
-      revealEl.innerHTML = result.drawn.map(code=>{
-        const r = RUNE_MAP[code];
-        return `<div class="reveal-card">${glyphSVG(code)}<div class="name">${code}</div><div class="pts">${r.points} pts</div></div>`;
-      }).join("");
+      revealEl.innerHTML = result.drawn.map((code,i)=> revealCardHTML(code, i)).join("");
       pinInput.value = "";
       renderAll();
     }catch(err){
@@ -874,9 +934,8 @@
     try{
       const result = await api("redeemPowerWord", {name, word, authPin});
       studentCache = result.student;
-      const r = RUNE_MAP[result.drawn];
       msgEl.innerHTML = `<div class="msg success">One rune forged for ${escapeHTML(name)}!</div>`;
-      revealEl.innerHTML = `<div class="reveal-card">${glyphSVG(result.drawn)}<div class="name">${result.drawn}</div><div class="pts">${r.points} pts</div></div>`;
+      revealEl.innerHTML = revealCardHTML(result.drawn, 0);
       powerWordInput.value = "";
       renderAll();
     }catch(err){
