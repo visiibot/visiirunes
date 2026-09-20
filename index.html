@@ -1429,7 +1429,7 @@
     try{
       const pins = await api("teacherListPins", {pass: teacherPass()});
       table.innerHTML = pins.length ? pins.map(p=>`
-        <tr><td style="font-family:'Cinzel',serif;letter-spacing:0.1em;">${p.code}</td>
+        <tr><td style="font-family:'VT323',serif;letter-spacing:0.1em;">${p.code}</td>
         <td><span class="tag ${p.used?'used':'unused'}">${p.used?'redeemed':'unused'}</span></td>
         <td>${p.usedBy?escapeHTML(p.usedBy):'—'}</td></tr>
       `).join("") : `<tr><td colspan="3" style="color:var(--ink-faint);">No PINs generated yet.</td></tr>`;
@@ -1645,9 +1645,9 @@
     wrap.style.display = "block";
 
     wrap.querySelectorAll(".recipe-check").forEach(el=>{
-      el.addEventListener("click", ()=>{
-        el.classList.toggle("on");
-        el.querySelector("input").checked = el.classList.contains("on");
+      const input = el.querySelector("input");
+      input.addEventListener("change", ()=>{
+        el.classList.toggle("on", input.checked);
       });
     });
 
