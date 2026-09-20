@@ -1308,13 +1308,22 @@
 
   /* ---- Site Logo (teacher: upload + reset) ---- */
   // The header's default rune SVG and the fetched <img> sit stacked in the
-  // same box (see #logoWrap CSS); we only ever move the img's opacity, so
-  // when a fetched logo arrives it cross-fades in over the rune rather than
-  // popping in the instant getLogo() resolves. The default rune itself
-  // never needs to be hidden — the img simply covers it once opaque.
+  // same box (see #logoWrap CSS). We fade the img's opacity in over the
+  // rune, then hide the rune entirely once the fade finishes — otherwise a
+  // logo with a transparent background would show the rune's outline
+  // bleeding through underneath it permanently, not just mid-fade. On
+  // reset, we reveal the rune again first so fading the img back out to 0
+  // still crossfades into it rather than popping.
   function applyLogo(dataUri){
+    const svg = document.getElementById("defaultLogoSvg");
     const img = document.getElementById("customLogoImg");
     const previewImg = document.getElementById("logoPreviewImg");
+    svg.style.display = "block";
+    img.ontransitionend = (e)=>{
+      if(e.propertyName === "opacity" && img.style.opacity === "1"){
+        svg.style.display = "none";
+      }
+    };
     if(dataUri){
       img.src = dataUri;
       img.style.opacity = "1";
