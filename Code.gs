@@ -43,6 +43,25 @@
  *  5. Any student can now forge a God Rune under the Transform tab by
  *     destroying one of every ordinary rune at once. "Grant a God Rune" is
  *     gone from the Teacher tab, since it's no longer how students get one.
+ *
+ * UPGRADING an existing deployment to add Power Words (whole-class group
+ * rewards):
+ *  1. Replace the old Code.gs contents with this file, and the old
+ *     index.html with the new one.
+ *  2. Run "setup" once more. This adds a new "PowerWordRedemptions" sheet
+ *     tab; nobody's rune counts, PINs, or milestone codes are touched.
+ *  3. Deploy > Manage deployments > pencil icon > Version: New version > Deploy.
+ *  4. From the Teacher tab, set a Power Word (3–12 characters) any time you
+ *     want to reward the whole class at once — it's distinct from a
+ *     one-time Milestone Code: any adventurer can redeem it (once each) on
+ *     the Roll page for ONE random rune, and it expires 12 hours after
+ *     you create it.
+ *
+ * UPGRADING further to add a teacher-replaceable site logo: no new sheet
+ * tab is needed (it reuses Config: LogoImage / LogoUpdatedAt), so just
+ * redeploy Code.gs and push the new index.html. Any teacher can upload a
+ * JPEG/PNG/BMP/WEBP/GIF from the Teacher tab; it replaces the header glyph
+ * for every visitor until changed again or cleared back to the default.
  */
 
 const SS = SpreadsheetApp.getActiveSpreadsheet();
@@ -166,6 +185,22 @@ const MAX_IMAGE_CHARS = 45000;
 const PIN_LOCKOUT_MS = 60000; // 60s lockout after too many wrong PIN attempts
 const PIN_MAX_FAILS = 5;
 
+// A Power Word is a *shared* code the whole class can redeem, unlike a
+// Milestone Code (Pins tab), which is one-time-use by a single student.
+// Redeeming it grants exactly one random rune, not three. See Section on
+// Power Words in the tech guide for the full design.
+const POWER_WORD_DURATION_MS = 12 * 60 * 60 * 1000; // 12 hours
+
+// The site logo shown top-left of the header. Teacher-uploaded, stored as a
+// data: URI in Config (LogoImage), same size-cap reasoning as runeword
+// photos (Section 5.4 of the tech guide / MAX_IMAGE_CHARS above), just with
+// a slightly higher ceiling of its own. Empty/unset means "use the built-in
+// SVG glyph baked into index.html". Google Sheets' hard cap is ~50,000
+// characters per cell — do not raise this past ~48,000 without also moving
+// to a different storage approach (e.g. Drive + a stored file URL).
+const LOGO_MAX_CHARS = 48000;
+const LOGO_ALLOWED_MIME = ["image/jpeg", "image/jpg", "image/png", "image/bmp", "image/webp", "image/gif"];
+
 /* ---------------- Setup ---------------- */
 
 function setup() {
@@ -176,6 +211,7 @@ function setup() {
   ensureColumns_(sh, studentHeaders);
   ensureSheet_("Pins", ["Code", "Used", "UsedBy", "CreatedAt", "UsedAt"]);
   ensureSheet_("Config", ["Key", "Value"]);
+  ensureSheet_("PowerWordRedemptions", ["Word", "Name", "RedeemedAt"]);
   seedRunewords_();
 }
 
@@ -311,13 +347,19 @@ function doPost(e) {
       case "verifyPin": data = apiVerifyPin(body.name, body.authPin); break;
       case "getStudent": data = apiGetStudent(body.name); break;
       case "roll": data = apiRoll(body.name, body.code, body.authPin); break;
+      case "redeemPowerWord": data = apiRedeemPowerWord(body.name, body.word, body.authPin); break;
       case "transform": data = apiTransform(body.name, body.target, body.selection, body.authPin); break;
       case "craft": data = apiCraft(body.name, body.itemId, body.authPin); break;
       case "craftSour": data = apiCraftSour(body.name, body.mult, body.authPin); break;
       case "getRunewords": data = apiGetRunewords(); break;
+      case "getLogo": data = apiGetLogo(); break;
       case "teacherSetup": data = apiTeacherSetup(body.pass); break;
       case "teacherLogin": data = apiTeacherLogin(body.pass); break;
       case "teacherGeneratePin": data = apiTeacherGeneratePin(body.pass); break;
+      case "teacherSetPowerWord": data = apiTeacherSetPowerWord(body.pass, body.word); break;
+      case "teacherGetPowerWord": data = apiTeacherGetPowerWord(body.pass); break;
+      case "teacherSetLogo": data = apiTeacherSetLogo(body.pass, body.image); break;
+      case "teacherClearLogo": data = apiTeacherClearLogo(body.pass); break;
       case "teacherListPins": data = apiTeacherListPins(body.pass); break;
       case "teacherListRunewords": data = apiTeacherListRunewords(body.pass); break;
       case "teacherAddRuneword": data = apiTeacherAddRuneword(body.pass, body); break;
@@ -570,6 +612,62 @@ function apiRoll(name, code, authPin) {
   } finally { lock.releaseLock(); }
 }
 
+/* ---------------- Power Words (shared, whole-class redemption) ---------------- */
+// Distinct from a Milestone Code (Pins tab): a Power Word is one shared
+// word the teacher sets for the whole class, any adventurer can redeem it
+// (once each), and each redemption grants exactly ONE random rune, not
+// three. It auto-expires 12 hours after the teacher creates it. The
+// currently-active word lives in Config (PowerWord / PowerWordExpiresAt);
+// who has already redeemed it lives in the PowerWordRedemptions sheet, one
+// row per (word, name) pair, so the same student can't redeem the same
+// word twice but every other student still can.
+
+function powerWordRedemptionsSheet_() { return SS.getSheetByName("PowerWordRedemptions"); }
+
+function validatePowerWordText_(word) {
+  var w = String(word || "").trim();
+  if (w.length < 3 || w.length > 12) throw new Error("Power Words must be 3–12 characters.");
+  return w;
+}
+
+function hasRedeemedPowerWord_(word, name) {
+  var sh = powerWordRedemptionsSheet_();
+  var values = sh.getDataRange().getValues();
+  var wKey = String(word).trim().toLowerCase();
+  var nKey = String(name).trim().toLowerCase();
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][0]).trim().toLowerCase() === wKey &&
+        String(values[i][1]).trim().toLowerCase() === nKey) return true;
+  }
+  return false;
+}
+
+function apiRedeemPowerWord(name, word, authPin) {
+  requireName_(name);
+  var entered = validatePowerWordText_(word);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sh = studentsSheet_();
+    var row = ensureStudentRow_(sh, name);
+    checkPin_(sh, row, authPin);
+
+    var current = getConfig_("PowerWord");
+    var expiresAt = Number(getConfig_("PowerWordExpiresAt")) || 0;
+    if (!current) throw new Error("There's no Power Word active right now. Ask your teacher.");
+    if (Date.now() >= expiresAt) throw new Error("That Power Word has expired. Ask your teacher for a new one.");
+    if (String(current).trim().toLowerCase() !== entered.toLowerCase()) throw new Error("Incorrect Power Word.");
+    if (hasRedeemedPowerWord_(current, name)) throw new Error(String(name).trim() + " has already redeemed this Power Word.");
+
+    var drawn = weightedRoll_();
+    var deltas = {};
+    deltas[drawn] = 1;
+    writeInventoryDelta_(sh, row, deltas);
+    powerWordRedemptionsSheet_().appendRow([current, String(name).trim(), new Date().toISOString()]);
+    return { drawn: drawn, student: readStudentPublic_(sh, row) };
+  } finally { lock.releaseLock(); }
+}
+
 function apiTransform(name, target, selection, authPin) {
   requireName_(name);
   if (target !== "GOD" && !RUNE_POINTS[target]) throw new Error("Unknown target rune.");
@@ -721,6 +819,43 @@ function apiTeacherGeneratePin(pass) {
   } finally { lock.releaseLock(); }
 }
 
+// Creates/overwrites the single active Power Word for the whole class.
+// Setting a new one always replaces whatever word (expired or not) was
+// active before — there's only ever one live Power Word at a time.
+function apiTeacherSetPowerWord(pass, word) {
+  requireTeacher_(pass);
+  var w = validatePowerWordText_(word);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var expiresAt = Date.now() + POWER_WORD_DURATION_MS;
+    setConfig_("PowerWord", w);
+    setConfig_("PowerWordExpiresAt", String(expiresAt));
+    setConfig_("PowerWordCreatedAt", String(Date.now()));
+    return { word: w, expiresAt: expiresAt };
+  } finally { lock.releaseLock(); }
+}
+
+// Status for the Teacher tab: the current word (if any), when it expires,
+// whether it's still active, and how many adventurers have redeemed it so
+// far — read-only, no lock needed.
+function apiTeacherGetPowerWord(pass) {
+  requireTeacher_(pass);
+  var word = getConfig_("PowerWord") || "";
+  var expiresAt = Number(getConfig_("PowerWordExpiresAt")) || 0;
+  var active = !!word && Date.now() < expiresAt;
+  var redemptions = 0;
+  if (word) {
+    var sh = powerWordRedemptionsSheet_();
+    var values = sh.getDataRange().getValues();
+    var wKey = String(word).trim().toLowerCase();
+    for (var i = 1; i < values.length; i++) {
+      if (String(values[i][0]).trim().toLowerCase() === wKey) redemptions++;
+    }
+  }
+  return { word: word, expiresAt: expiresAt, active: active, redemptions: redemptions };
+}
+
 /* ---------------- Runeword (item) management — student-facing ---------------- */
 
 // Public: returns every visible runeword. Called by the frontend on load
@@ -728,6 +863,43 @@ function apiTeacherGeneratePin(pass) {
 // own hardcoded copy.
 function apiGetRunewords() {
   return readRunewords_(false);
+}
+
+/* ---------------- Site logo (teacher-uploaded, whole-site) ---------------- */
+
+function validateLogoImage_(image) {
+  var s = String(image || "");
+  if (!s) throw new Error("No image was received.");
+  if (s.length > LOGO_MAX_CHARS) throw new Error("That image is too large even after compression — try a smaller file.");
+  var m = /^data:([a-zA-Z0-9.+-]+\/[a-zA-Z0-9.+-]+);base64,/.exec(s);
+  if (!m || LOGO_ALLOWED_MIME.indexOf(m[1].toLowerCase()) === -1) {
+    throw new Error("Logo must be a JPEG, PNG, BMP, WEBP, or GIF image.");
+  }
+}
+
+// Public: returns the current custom logo (a data: URI), or "" if the
+// teacher hasn't set one, in which case the frontend falls back to its
+// built-in SVG glyph. Called by every visitor on page load.
+function apiGetLogo() {
+  return { image: getConfig_("LogoImage") || "" };
+}
+
+// Replaces the site-wide logo. Whatever is uploaded here is shown to every
+// visitor, on every device, until a teacher changes or clears it — there is
+// only ever one live logo, same one-active-thing pattern as the Power Word.
+function apiTeacherSetLogo(pass, image) {
+  requireTeacher_(pass);
+  validateLogoImage_(image);
+  setConfig_("LogoImage", image);
+  setConfig_("LogoUpdatedAt", String(Date.now()));
+  return { image: image };
+}
+
+// Reverts to the default built-in SVG glyph.
+function apiTeacherClearLogo(pass) {
+  requireTeacher_(pass);
+  setConfig_("LogoImage", "");
+  return { ok: true };
 }
 
 /* ---------------- Runeword (item) management — teacher-facing ---------------- */
@@ -878,16 +1050,20 @@ function apiTeacherResetPin(pass, name) {
   } finally { lock.releaseLock(); }
 }
 
+// Wipes all student and milestone-code data, plus any active Power Word
+// and its redemption history. Irreversible. (Does not touch Runewords.)
 function apiTeacherReset(pass) {
   requireTeacher_(pass);
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    ["Students", "Pins"].forEach(function (name) {
+    ["Students", "Pins", "PowerWordRedemptions"].forEach(function (name) {
       var sh = SS.getSheetByName(name);
       var lastRow = sh.getLastRow();
       if (lastRow > 1) sh.getRange(2, 1, lastRow - 1, sh.getLastColumn()).clearContent();
     });
+    setConfig_("PowerWord", "");
+    setConfig_("PowerWordExpiresAt", "");
     return { ok: true };
   } finally { lock.releaseLock(); }
 }
