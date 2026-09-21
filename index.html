@@ -58,12 +58,6 @@
   .logo-wrap{width:64px;height:64px;flex-shrink:0;display:inline-block;filter:drop-shadow(0 0 6px #d3a34e55);}
   .logo-wrap svg{width:100%;height:100%;display:block;}
   .logo-wrap img{width:100%;height:100%;display:block;object-fit:fill;border-radius:6px;}
-  /* Header logo only: stack the default rune and the fetched logo in the same
-     box so the fetched one can cross-fade in over the rune, instead of the
-     jarring instant swap that used to happen once getLogo() resolved. */
-  #logoWrap{position:relative;}
-  #logoWrap svg, #logoWrap img{position:absolute;top:0;left:0;}
-  #logoWrap img{opacity:0;transition:opacity 2s ease;}
   .brand-text h1{font-size:1.5rem;color:var(--ink);}
   .brand-text p{margin:2px 0 0;color:var(--ink-faint);font-size:0.82rem;}
 
@@ -101,24 +95,6 @@
   nav.tabs button:hover{color:var(--ink);}
   nav.tabs button.active{color:var(--amber-bright);border-bottom-color:var(--amber);}
 
-  /* Secondary tab strip inside the Teacher tab: Manage Items, Award Runes,
-     Transform History, Students, PIN History, and Danger Zone all start
-     collapsed and only render their panel once clicked, so the Teacher tab
-     isn't one long scroll of every panel at once. */
-  .subtabs{
-    display:flex;gap:6px;flex-wrap:wrap;
-    padding:8px;margin:4px 0 20px;
-    background:var(--stone);border:1px solid var(--stone-line);border-radius:var(--radius);
-  }
-  .subtabs button{
-    background:transparent;border:1px solid transparent;color:var(--ink-dim);
-    padding:8px 14px;border-radius:8px;cursor:pointer;
-    font-family:'Cinzel',serif;font-size:0.8rem;letter-spacing:0.02em;
-    transition:background .15s,color .15s,border-color .15s;
-  }
-  .subtabs button:hover{color:var(--ink);border-color:var(--stone-line);}
-  .subtabs button.active{background:var(--amber-deep);color:#fff5e2;border-color:var(--amber);}
-
   main{padding-top:28px;}
   .panel{
     background:var(--panel);border:1px solid var(--stone-line);border-radius:var(--radius);
@@ -144,6 +120,8 @@
   .btn.success{background:#2f6b62;border-color:var(--fjord);color:#eafffb;}
   .btn.success:hover{background:var(--fjord);}
   .btn.small{padding:6px 12px;font-size:0.76rem;}
+  .btn.crafted{background:#2e7d32;border-color:#66bb6a;color:#eafbea;}
+  .btn.crafted:hover{background:#2e7d32;}
 
   input[type=text],input[type=password],input[type=number],select{
     background:var(--stone);border:1px solid var(--stone-line);color:var(--ink);
@@ -191,39 +169,13 @@
   .reveal-row{display:flex;gap:18px;margin-top:24px;flex-wrap:wrap;}
   .reveal-card{
     background:var(--stone);border:1px solid var(--amber);border-radius:var(--radius);
-    padding:16px;text-align:center;width:130px;position:relative;
-    animation: revealPop 0.55s steps(10) both;
-    animation-delay: var(--d, 0s);
+    padding:16px;text-align:center;width:130px;
+    animation:flip .5s ease;
   }
-  @keyframes revealPop{
-    0%{opacity:0; transform:scale(0.4) translateY(6px);}
-    55%{opacity:1; transform:scale(1.12) translateY(-2px);}
-    100%{opacity:1; transform:scale(1) translateY(0);}
-  }
-  .rune-icon-wrap{position:relative; display:inline-block;}
-  .reveal-card .glyph svg{width:44px;height:44px;margin-bottom:8px;display:block;}
+  @keyframes flip{from{transform:rotateY(90deg);opacity:0;}to{transform:rotateY(0);opacity:1;}}
+  .reveal-card svg{width:44px;height:44px;margin-bottom:8px;}
   .reveal-card .name{font-family:'Cinzel',serif;color:var(--amber-bright);}
   .reveal-card .pts{color:var(--ink-faint);font-size:0.78rem;margin-top:2px;}
-
-  /* 8-bit sparkle burst: a handful of blocky pixel-stars fly outward from
-     the rune the instant its reveal-card pops in. steps() timing (instead
-     of ease) is what gives them their chunky, retro-game feel rather than
-     a smooth modern particle effect. */
-  .spark{
-    position:absolute; top:50%; left:50%; width:0; height:0;
-    pointer-events:none;
-    animation: sparkPop 0.6s steps(6,jump-end) both;
-    animation-delay: var(--d, 0s);
-  }
-  .spark svg{
-    position:absolute; top:-5px; left:-5px; width:10px; height:10px;
-    image-rendering: pixelated;
-  }
-  @keyframes sparkPop{
-    0%{ transform:translate(0,0) scale(0); opacity:0; }
-    20%{ opacity:1; transform:translate(0,0) scale(1); }
-    100%{ transform:translate(var(--tx,0), var(--ty,0)) scale(0.4); opacity:0; }
-  }
 
   .target-row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;}
   .target-pick{
@@ -353,7 +305,7 @@
   <div class="brand">
     <span class="logo-wrap" id="logoWrap">
       <svg id="defaultLogoSvg" width="64" height="64" viewBox="0 0 60 60"><polygon points="9,3 51,3 58,57 2,57" fill="#2b3346" stroke="#d3a34e" stroke-width="1.5"/><path d="M22 42 L30 12 L38 42 M25 30 L35 30" stroke="#eec27a" stroke-width="3" fill="none" stroke-linecap="round"/></svg>
-      <img id="customLogoImg" alt="Site logo">
+      <img id="customLogoImg" alt="Site logo" style="display:none;">
     </span>
     <div class="brand-text">
       <h1>The Runic System</h1>
@@ -376,7 +328,7 @@
 
 <nav class="tabs" id="tabs">
   <button data-tab="roll" class="active">Roll</button>
-  <button data-tab="inventory">My Runes</button>
+  <button data-tab="inventory">My Runes & Items</button>
   <button data-tab="transform">Transform</button>
   <button data-tab="craft">Craft</button>
   <button data-tab="codex">Codex</button>
@@ -532,88 +484,34 @@
         <div id="logoMsg" style="margin-top:10px;"></div>
       </div>
 
-      <nav class="subtabs" id="teacherSubtabs">
-        <button data-subtab="items">Manage Items</button>
-        <button data-subtab="awards">Award Runes</button>
-        <button data-subtab="transforms">Transform History</button>
-        <button data-subtab="students">Students</button>
-        <button data-subtab="pins">PIN History</button>
-        <button data-subtab="danger">Danger Zone</button>
-      </nav>
-
-      <div class="subtabpane" id="subtab-items" style="display:none">
-        <div class="panel">
-          <div class="row between"><h2>Manage Items</h2><button class="btn small" id="addItemBtn">+ Add New Item</button></div>
-          <p class="lede">Add, edit, hide, or delete runewords. Hidden items stop showing up in Craft and the Codex, but stay listed here — students who already crafted one keep it either way. God Runes are no longer granted by hand here; students forge them under the Transform tab by combining one of every ordinary rune.</p>
-          <div id="itemFormWrap" style="display:none;"></div>
-          <div id="itemsAdminList"></div>
-        </div>
+      <div class="panel">
+        <div class="row between"><h2>PIN History</h2><button class="btn ghost small" id="refreshPinsBtn">Refresh</button></div>
+        <table>
+          <thead><tr><th>Code</th><th>Status</th><th>Redeemed by</th></tr></thead>
+          <tbody id="pinHistoryTable"></tbody>
+        </table>
       </div>
 
-      <div class="subtabpane" id="subtab-awards" style="display:none">
-        <div class="panel">
-          <h2>Award a Rune</h2>
-          <p class="lede">Give one specific rune directly to an adventurer — useful for a one-off reward that doesn't fit a milestone code or Power Word.</p>
-          <div class="roll-form">
-            <div class="field">
-              <label for="awardStudentSelect">Adventurer</label>
-              <select id="awardStudentSelect"><option value="">— Select —</option></select>
-            </div>
-            <div class="field">
-              <label for="awardRuneSelect">Rune</label>
-              <select id="awardRuneSelect"></select>
-            </div>
-            <button class="btn" id="awardRuneBtn">Award Rune</button>
-          </div>
-          <div id="awardRuneMsg" style="margin-top:10px;"></div>
-        </div>
-        <div class="panel">
-          <div class="row between"><h2>Rune Award History</h2><button class="btn ghost small" id="refreshAwardsBtn">Refresh</button></div>
-          <table>
-            <thead><tr><th>Adventurer</th><th>Rune</th><th>Date</th></tr></thead>
-            <tbody id="runeAwardsTable"></tbody>
-          </table>
-        </div>
+      <div class="panel">
+        <div class="row between"><h2>Manage Items</h2><button class="btn small" id="addItemBtn">+ Add New Item</button></div>
+        <p class="lede">Add, edit, hide, or delete runewords. Hidden items stop showing up in Craft and the Codex, but stay listed here — students who already crafted one keep it either way. God Runes are no longer granted by hand here; students forge them under the Transform tab by combining one of every ordinary rune.</p>
+        <div id="itemFormWrap" style="display:none;"></div>
+        <div id="itemsAdminList"></div>
       </div>
 
-      <div class="subtabpane" id="subtab-transforms" style="display:none">
-        <div class="panel">
-          <div class="row between"><h2>Transform History</h2><button class="btn ghost small" id="refreshTransformsBtn">Refresh</button></div>
-          <p class="lede">Every rune Transform (ordinary or a forged God Rune) any adventurer has performed, most recent first.</p>
-          <table>
-            <thead><tr><th>Adventurer</th><th>Target Rune</th><th>Runes Destroyed</th><th>Date</th></tr></thead>
-            <tbody id="transformHistoryTable"></tbody>
-          </table>
-        </div>
+      <div class="panel">
+        <div class="row between"><h2>Students</h2><button class="btn ghost small" id="refreshStudentsBtn">Refresh</button></div>
+        <p class="lede">If a student forgets their PIN, reset it here — they'll be asked to set a new one next time they act.</p>
+        <table>
+          <thead><tr><th>Name</th><th>Total Runes</th><th>Items Crafted</th><th>PIN</th><th></th></tr></thead>
+          <tbody id="studentsTable"></tbody>
+        </table>
       </div>
 
-      <div class="subtabpane" id="subtab-students" style="display:none">
-        <div class="panel">
-          <div class="row between"><h2>Students</h2><button class="btn ghost small" id="refreshStudentsBtn">Refresh</button></div>
-          <p class="lede">If a student forgets their PIN, reset it here — they'll be asked to set a new one next time they act.</p>
-          <table>
-            <thead><tr><th>Name</th><th>Total Runes</th><th>Items Crafted</th><th>PIN</th><th></th></tr></thead>
-            <tbody id="studentsTable"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="subtabpane" id="subtab-pins" style="display:none">
-        <div class="panel">
-          <div class="row between"><h2>PIN History</h2><button class="btn ghost small" id="refreshPinsBtn">Refresh</button></div>
-          <table>
-            <thead><tr><th>Code</th><th>Status</th><th>Redeemed by</th></tr></thead>
-            <tbody id="pinHistoryTable"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="subtabpane" id="subtab-danger" style="display:none">
-        <div class="panel">
-          <h2 style="color:#e08a75;">Danger Zone</h2>
-          <p class="lede">Clears every student's runes, crafted items, PIN history, rune award history, and transform history for the whole class. Cannot be undone.</p>
-          <button class="btn danger" id="resetAllBtn">Reset All Data</button>
-        </div>
+      <div class="panel">
+        <h2 style="color:#e08a75;">Danger Zone</h2>
+        <p class="lede">Clears every student's runes, crafted items, and all PIN history for the whole class. Cannot be undone.</p>
+        <button class="btn danger" id="resetAllBtn">Reset All Data</button>
       </div>
     </div>
   </section>
@@ -791,43 +689,6 @@
     return `<svg viewBox="0 0 60 60" ${extraStyle||""}><path d="${path}" stroke="${stroke}" stroke-width="4.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
   }
 
-  /* ============ Roll reveal: fade-in cards + 8-bit sparkle burst ============ */
-  // A tiny blocky pixel-star (crisp edges, no anti-aliasing) used for the
-  // retro sparkle effect. Kept as a plain "+" of 2x2 squares so it reads
-  // as pixel art at 10x10px rather than a smooth vector star.
-  function pixelSparkSVG(color){
-    return `<svg viewBox="0 0 8 8" shape-rendering="crispEdges">
-      <rect x="3" y="0" width="2" height="2" fill="${color}"/>
-      <rect x="3" y="6" width="2" height="2" fill="${color}"/>
-      <rect x="0" y="3" width="2" height="2" fill="${color}"/>
-      <rect x="6" y="3" width="2" height="2" fill="${color}"/>
-      <rect x="3" y="3" width="2" height="2" fill="${color}"/>
-    </svg>`;
-  }
-  const SPARK_PALETTE = ["#eec27a","#ffffff","#7fd8c9","#d3a34e"];
-  const SPARK_DIRS = [[-26,-22],[26,-24],[-30,6],[30,4],[-12,-32],[14,-30],[0,-38]];
-  function sparkleBurstHTML(baseDelayMs){
-    return SPARK_DIRS.map((d,i)=>{
-      const color = SPARK_PALETTE[i % SPARK_PALETTE.length];
-      const delay = baseDelayMs + 120 + i*35;
-      return `<span class="spark" style="--tx:${d[0]}px;--ty:${d[1]}px;--d:${delay}ms;">${pixelSparkSVG(color)}</span>`;
-    }).join("");
-  }
-  // Builds one reveal-card, staggered by index so multiple runes (e.g. a
-  // 3-rune Roll) cascade in one after another rather than popping at once.
-  function revealCardHTML(code, index){
-    const r = RUNE_MAP[code];
-    const delay = (index||0) * 140;
-    return `<div class="reveal-card" style="--d:${delay}ms;">
-      <span class="rune-icon-wrap">
-        <span class="glyph">${glyphSVG(code)}</span>
-        ${sparkleBurstHTML(delay)}
-      </span>
-      <div class="name">${code}</div>
-      <div class="pts">${r.points} pts</div>
-    </div>`;
-  }
-
   /* ============ Current student ============ */
   const nameInput = document.getElementById("studentName");
   nameInput.value = localStorage.getItem("runicCurrentStudent") || "";
@@ -933,6 +794,7 @@
   }
 
   let studentCache = null; // {inventory, crafted} for currentName()
+  let justCraftedKey = null; // id of the item (or "sour") whose Craft button should show the green "Crafted" flash on next renderCraft()
   async function loadStudent(force){
     const name = currentName();
     if(!name) return null;
@@ -974,7 +836,10 @@
       const result = await api("roll", {name, code, authPin});
       studentCache = result.student;
       msgEl.innerHTML = `<div class="msg success">Three runes forged for ${escapeHTML(name)}!</div>`;
-      revealEl.innerHTML = result.drawn.map((code,i)=> revealCardHTML(code, i)).join("");
+      revealEl.innerHTML = result.drawn.map(code=>{
+        const r = RUNE_MAP[code];
+        return `<div class="reveal-card">${glyphSVG(code)}<div class="name">${code}</div><div class="pts">${r.points} pts</div></div>`;
+      }).join("");
       pinInput.value = "";
       renderAll();
     }catch(err){
@@ -1006,8 +871,9 @@
     try{
       const result = await api("redeemPowerWord", {name, word, authPin});
       studentCache = result.student;
+      const r = RUNE_MAP[result.drawn];
       msgEl.innerHTML = `<div class="msg success">One rune forged for ${escapeHTML(name)}!</div>`;
-      revealEl.innerHTML = revealCardHTML(result.drawn, 0);
+      revealEl.innerHTML = `<div class="reveal-card">${glyphSVG(result.drawn)}<div class="name">${result.drawn}</div><div class="pts">${r.points} pts</div></div>`;
       powerWordInput.value = "";
       renderAll();
     }catch(err){
@@ -1246,7 +1112,11 @@
       return {item, can, chips};
     });
 
-    grid.innerHTML = cards.map(({item,can,chips})=>`
+    grid.innerHTML = cards.map(({item,can,chips})=>{
+      const justCrafted = justCraftedKey === item.id;
+      const btnClass = justCrafted ? "btn small crafted" : "btn small";
+      const btnLabel = justCrafted ? "Crafted" : "Craft";
+      return `
       <div class="item-card ${can?'craftable':''}" data-id="${item.id}">
         <div class="item-img-container">
           <img src="${itemImageSrc(item)}" alt="${item.name}" loading="lazy" onerror="this.style.display='none'">
@@ -1255,9 +1125,11 @@
         <div class="effect">${item.effect}</div>
         ${item.quote?`<div class="quote">"${item.quote}"</div>`:""}
         <div class="recipe">${chips}</div>
-        <button class="btn small" data-craft="${item.id}" ${can?'':'disabled'}>Craft</button>
+        <button class="${btnClass}" data-craft="${item.id}" ${can?'':'disabled'}>${btnLabel}</button>
       </div>
-    `).join("") + renderSourKeyCard(student);
+    `;
+    }).join("") + renderSourKeyCard(student);
+    justCraftedKey = null; // one-shot flash: consumed as soon as it's been rendered once
 
     grid.querySelectorAll("button[data-craft]").forEach(b=>{
       b.addEventListener("click", ()=>craftItem(b.dataset.craft, name));
@@ -1277,6 +1149,9 @@
       if(!have) can = false;
       return `<span class="req-chip ${have?'have':'missing'}">${glyphSVG(code)} ${code} ×${qty}</span>`;
     }).join("");
+    const sourJustCrafted = justCraftedKey === "sour";
+    const sourBtnClass = sourJustCrafted ? "btn small crafted" : "btn small";
+    const sourBtnLabel = sourJustCrafted ? "Crafted" : "Craft";
     return `
       <div class="item-card ${can?'craftable':''}">
         <div class="item-img-container">
@@ -1291,7 +1166,7 @@
           </select>
         </div>
         <div class="recipe">${chips}</div>
-        <button class="btn small" data-craft-sour="1" ${can?'':'disabled'}>Craft</button>
+        <button class="${sourBtnClass}" data-craft-sour="1" ${can?'':'disabled'}>${sourBtnLabel}</button>
       </div>
     `;
   }
@@ -1304,6 +1179,7 @@
     try{
       const updated = await api("craft", {name, itemId:id, authPin});
       studentCache = updated;
+      justCraftedKey = id;
       renderCraft();
       renderInventory();
     }catch(err){
@@ -1320,6 +1196,7 @@
     try{
       const updated = await api("craftSour", {name, mult, authPin});
       studentCache = updated;
+      justCraftedKey = "sour";
       renderCraft();
       renderInventory();
     }catch(err){
@@ -1370,7 +1247,6 @@
       sessionStorage.setItem(TEACHER_KEY, entered);
       document.getElementById("teacherPass").value = "";
       msg.innerHTML = "";
-      collapseTeacherSubtabs();
       renderTeacher();
     }catch(err){
       msg.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
@@ -1379,7 +1255,6 @@
 
   document.getElementById("teacherLockBtn").addEventListener("click", ()=>{
     sessionStorage.removeItem(TEACHER_KEY);
-    collapseTeacherSubtabs();
     renderTeacher();
   });
 
@@ -1440,30 +1315,15 @@
   }
 
   /* ---- Site Logo (teacher: upload + reset) ---- */
-  // The header's default rune SVG and the fetched <img> sit stacked in the
-  // same box (see #logoWrap CSS). We fade the img's opacity in over the
-  // rune, then hide the rune entirely once the fade finishes — otherwise a
-  // logo with a transparent background would show the rune's outline
-  // bleeding through underneath it permanently, not just mid-fade. On
-  // reset, we reveal the rune again first so fading the img back out to 0
-  // still crossfades into it rather than popping.
   function applyLogo(dataUri){
     const svg = document.getElementById("defaultLogoSvg");
     const img = document.getElementById("customLogoImg");
     const previewImg = document.getElementById("logoPreviewImg");
-    svg.style.display = "block";
-    img.ontransitionend = (e)=>{
-      if(e.propertyName === "opacity" && img.style.opacity === "1"){
-        svg.style.display = "none";
-      }
-    };
     if(dataUri){
-      img.src = dataUri;
-      img.style.opacity = "1";
+      img.src = dataUri; img.style.display = "block"; svg.style.display = "none";
       if(previewImg){ previewImg.src = dataUri; previewImg.style.display = "block"; }
     } else {
-      img.style.opacity = "0";
-      img.removeAttribute("src");
+      img.style.display = "none"; svg.style.display = "block"; img.removeAttribute("src");
       if(previewImg){ previewImg.style.display = "none"; previewImg.removeAttribute("src"); }
     }
   }
@@ -1583,7 +1443,7 @@
     try{
       const pins = await api("teacherListPins", {pass: teacherPass()});
       table.innerHTML = pins.length ? pins.map(p=>`
-        <tr><td style="font-family:'VT323',serif;letter-spacing:0.1em;">${p.code}</td>
+        <tr><td style="font-family:'Cinzel',serif;letter-spacing:0.1em;">${p.code}</td>
         <td><span class="tag ${p.used?'used':'unused'}">${p.used?'redeemed':'unused'}</span></td>
         <td>${p.usedBy?escapeHTML(p.usedBy):'—'}</td></tr>
       `).join("") : `<tr><td colspan="3" style="color:var(--ink-faint);">No PINs generated yet.</td></tr>`;
@@ -1620,116 +1480,6 @@
       alert(err.message);
     }
   });
-
-  /* ============ TEACHER: Award a Rune ============ */
-  // All 13 possible award options: the twelve ordinary runes plus GOD —
-  // this is deliberately more general than the old (removed) "grant a God
-  // Rune" action, since a teacher may want to hand out any rune directly.
-  const AWARD_CODES = [...RUNES.map(r=>r.code), "GOD"];
-  (function populateAwardRuneOptions(){
-    const sel = document.getElementById("awardRuneSelect");
-    sel.innerHTML = AWARD_CODES.map(code=>{
-      const label = code === "GOD" ? "GOD — God Rune" : `${code} — ${RUNE_MAP[code].points} pts`;
-      return `<option value="${code}">${label}</option>`;
-    }).join("");
-  })();
-
-  async function renderAwardStudentOptions(){
-    const sel = document.getElementById("awardStudentSelect");
-    const keep = sel.value;
-    sel.innerHTML = `<option value="">Loading…</option>`;
-    try{
-      const students = await api("teacherListStudents", {pass: teacherPass()});
-      sel.innerHTML = `<option value="">— Select —</option>` + students.map(s=>
-        `<option value="${escapeHTML(s.name)}">${escapeHTML(s.name)}</option>`
-      ).join("");
-      if(keep) sel.value = keep;
-    }catch(err){
-      sel.innerHTML = `<option value="">— Couldn't load students —</option>`;
-    }
-  }
-
-  document.getElementById("awardRuneBtn").addEventListener("click", async ()=>{
-    const msg = document.getElementById("awardRuneMsg");
-    const name = document.getElementById("awardStudentSelect").value;
-    const code = document.getElementById("awardRuneSelect").value;
-    if(!name){ msg.innerHTML = `<div class="msg error">Pick an adventurer first.</div>`; return; }
-    msg.innerHTML = `<div class="msg info">Awarding…</div>`;
-    try{
-      await api("teacherAwardRune", {pass: teacherPass(), name, code});
-      msg.innerHTML = `<div class="msg success">Awarded one ${code} rune to ${escapeHTML(name)}.</div>`;
-      renderRuneAwardHistory();
-    }catch(err){
-      msg.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
-    }
-  });
-
-  document.getElementById("refreshAwardsBtn").addEventListener("click", renderRuneAwardHistory);
-
-  async function renderRuneAwardHistory(){
-    const table = document.getElementById("runeAwardsTable");
-    table.innerHTML = `<tr><td colspan="3" style="color:var(--ink-faint);">Loading…</td></tr>`;
-    try{
-      const awards = await api("teacherListRuneAwards", {pass: teacherPass()});
-      table.innerHTML = awards.length ? awards.map(a=>`
-        <tr><td>${escapeHTML(a.name)}</td><td>${a.rune}</td><td>${new Date(a.at).toLocaleString()}</td></tr>
-      `).join("") : `<tr><td colspan="3" style="color:var(--ink-faint);">No runes awarded yet.</td></tr>`;
-    }catch(err){
-      table.innerHTML = `<tr><td colspan="3" class="msg error">${escapeHTML(err.message)}</div>`;
-    }
-  }
-
-  /* ============ TEACHER: Transform History ============ */
-  document.getElementById("refreshTransformsBtn").addEventListener("click", renderTransformHistory);
-
-  async function renderTransformHistory(){
-    const table = document.getElementById("transformHistoryTable");
-    table.innerHTML = `<tr><td colspan="4" style="color:var(--ink-faint);">Loading…</td></tr>`;
-    try{
-      const transforms = await api("teacherListTransforms", {pass: teacherPass()});
-      table.innerHTML = transforms.length ? transforms.map(t=>{
-        const destroyedStr = Object.keys(t.destroyed).map(code=>`${t.destroyed[code]}× ${code}`).join(", ") || "—";
-        return `<tr><td>${escapeHTML(t.name)}</td><td>${t.target}</td><td>${destroyedStr}</td><td>${new Date(t.at).toLocaleString()}</td></tr>`;
-      }).join("") : `<tr><td colspan="4" style="color:var(--ink-faint);">No transforms yet.</td></tr>`;
-    }catch(err){
-      table.innerHTML = `<tr><td colspan="4" class="msg error">${escapeHTML(err.message)}</div>`;
-    }
-  }
-
-  /* ============ TEACHER: subtab strip (Manage Items / Award Runes /
-     Transform History / Students / PIN History / Danger Zone) ============ */
-  // Every one of these starts collapsed; clicking a subtab button opens its
-  // panel (closing whichever other one was open) and lazy-loads its data —
-  // clicking the same subtab again collapses it back to nothing open. This
-  // both matches the "collapsed until clicked" ask and avoids fetching six
-  // panels' worth of data every time the Teacher tab is unlocked.
-  const SUBTAB_LOADERS = {
-    items: renderTeacherItems,
-    awards: ()=>{ renderAwardStudentOptions(); renderRuneAwardHistory(); },
-    transforms: renderTransformHistory,
-    students: renderTeacherStudents,
-    pins: renderTeacherPins,
-    danger: null,
-  };
-  document.querySelectorAll("#teacherSubtabs button[data-subtab]").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-      const key = btn.dataset.subtab;
-      const pane = document.getElementById("subtab-"+key);
-      const isOpen = pane.style.display !== "none";
-      document.querySelectorAll(".subtabpane").forEach(p=>p.style.display="none");
-      document.querySelectorAll("#teacherSubtabs button").forEach(b=>b.classList.remove("active"));
-      if(!isOpen){
-        pane.style.display = "block";
-        btn.classList.add("active");
-        const loader = SUBTAB_LOADERS[key];
-        if(loader) loader();
-      }
-    });
-  });
-  function collapseTeacherSubtabs(){
-    document.querySelectorAll(".subtabpane").forEach(p=>p.style.display="none");
-    document.querySelectorAll("#teacherSubtabs button").forEach(b=>b.classList.remove("active"));
-  }
 
   /* ============ TEACHER: Manage Items ============ */
   // All 13 possible recipe ingredients: the twelve ordinary runes plus GOD
@@ -1909,9 +1659,9 @@
     wrap.style.display = "block";
 
     wrap.querySelectorAll(".recipe-check").forEach(el=>{
-      const input = el.querySelector("input");
-      input.addEventListener("change", ()=>{
-        el.classList.toggle("on", input.checked);
+      el.addEventListener("click", ()=>{
+        el.classList.toggle("on");
+        el.querySelector("input").checked = el.classList.contains("on");
       });
     });
 
@@ -1965,10 +1715,9 @@
     document.getElementById("teacherLockPanel").style.display = unlocked ? "none" : "block";
     document.getElementById("teacherPanels").style.display = unlocked ? "block" : "none";
     if(!unlocked) return;
-    // Manage Items / Award Runes / Transform History / Students / PIN
-    // History all live behind the collapsed subtabs now, and lazy-load
-    // their own data the moment a teacher actually clicks one open — see
-    // SUBTAB_LOADERS — so only the always-visible panels refresh here.
+    renderTeacherPins();
+    renderTeacherStudents();
+    renderTeacherItems();
     renderPowerWordStatus();
     loadLogo();
   }
