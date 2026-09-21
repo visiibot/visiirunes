@@ -75,6 +75,23 @@
  *     adventurer performs is now also logged automatically, viewable under
  *     "Transform History". "Reset All Data" now clears both of these logs
  *     too, alongside everything else it already wiped.
+ *
+ * UPGRADING further to add the Loot Shop (real-world prizes, not in-game
+ * items):
+ *  1. Replace the old Code.gs contents with this file, and the old
+ *     index.html with the new one.
+ *  2. Run "setup" once more. This creates a new "Loot" sheet tab, seeded
+ *     once (like Runewords) with a starter catalog of five prizes, plus a
+ *     "LootPurchases" log tab — nobody's existing data is touched.
+ *  3. Deploy > Manage deployments > pencil icon > Version: New version > Deploy.
+ *  4. Add the five seed images to the frontend's images/ folder, named to
+ *     match their auto-generated ids: sticker.png, pin.png, patch.png,
+ *     warhammer.png, die.png. Push to GitHub.
+ *  5. From then on, add/edit/hide/delete loot from the Teacher tab's new
+ *     "Manage Loot" subtab — no code changes needed. Loot is bought with
+ *     the twelve ordinary runes only (never GOD). "Reset All Data" now
+ *     also clears LootPurchases, alongside everything else it already
+ *     wiped (it does not touch the Loot catalog itself, same as Runewords).
  */
 
 const SS = SpreadsheetApp.getActiveSpreadsheet();
@@ -189,6 +206,23 @@ const RUNEWORD_SEED = [
 ];
 const SOUR_KEY_BASE = ["SHAEL", "IO", "JAH", "BER"];
 
+// ---- Loot Shop (real-world prizes, not in-game runewords) ----
+// Mirrors the Runewords pattern exactly: the "Loot" sheet tab is the live
+// source of truth for the prize catalog, seeded once from LOOT_SEED on
+// first setup(), then managed entirely from the Teacher tab's "Manage
+// Loot" subtab (add/edit/hide/delete) — no code edits needed after that.
+// Ids are set explicitly here (not slugified) so they match the seed image
+// filenames the teacher is asked to add to images/: sticker.png, pin.png,
+// patch.png, warhammer.png, die.png.
+const LOOT_SEED = [
+  { id: "sticker", name: "Sticker", description: "A fun sticker for your notebook or water bottle.", cost: ["TIR", "TAL"] },
+  { id: "pin", name: "Pin", description: "A collectible pin.", cost: ["ITH", "NEF", "IO"] },
+  { id: "patch", name: "Patch", description: "An iron-on or sew-on patch.", cost: ["TIR", "TAL", "LUM"] },
+  { id: "warhammer", name: "Warhammer Figurine", description: "A small painted miniature figurine.", cost: ["ORT", "JAH"] },
+  { id: "die", name: "One D&D Die", description: "A single polyhedral die for your dice bag.", cost: ["BER", "THUL"] },
+];
+const LOOT_HEADERS = ["Id", "Name", "Description", "Cost", "Image", "Hidden", "UpdatedAt"];
+
 const RUNEWORD_HEADERS = ["Id", "Name", "Slot", "Recipe", "Effect", "Quote", "Image", "Hidden", "UpdatedAt"];
 // Keeps each Runewords!Image cell safely under a Google Sheet cell's ~50,000
 // character limit. The frontend compresses/resizes photos before upload to
@@ -227,7 +261,25 @@ function setup() {
   ensureSheet_("PowerWordRedemptions", ["Word", "Name", "RedeemedAt"]);
   ensureSheet_("RuneAwards", ["Name", "Rune", "At"]);
   ensureSheet_("Transforms", ["Name", "Target", "Destroyed", "At"]);
+  ensureSheet_("LootPurchases", ["Name", "Item", "At"]);
   seedRunewords_();
+  seedLoot_();
+}
+
+// Creates the Loot sheet (if missing) and, only if it's empty, fills it
+// with the built-in LOOT_SEED catalog. Safe to re-run, same pattern as
+// seedRunewords_: once any rows exist here, this never touches them again.
+function seedLoot_() {
+  var sh = ensureSheet_("Loot", LOOT_HEADERS);
+  ensureColumns_(sh, LOOT_HEADERS);
+  if (sh.getLastRow() <= 1) {
+    LOOT_SEED.forEach(function (item) {
+      sh.appendRow([
+        item.id, item.name, item.description || "", JSON.stringify(item.cost),
+        "", false, new Date().toISOString()
+      ]);
+    });
+  }
 }
 
 // Creates the Runewords sheet (if missing) and, only if it's empty, fills
@@ -345,6 +397,78 @@ function validateImage_(image) {
   }
 }
 
+/* ---------------- Loot (real-world prize) row helpers ---------------- */
+// Same pattern as the Runeword helpers above, one level simpler (no slot,
+// no quote, no "GOD" as an option — loot is bought with the twelve
+// ordinary runes only).
+
+function lootSheet_() { return SS.getSheetByName("Loot"); }
+function lootPurchasesSheet_() { return SS.getSheetByName("LootPurchases"); }
+
+function rowToLoot_(headers, values) {
+  var obj = {};
+  headers.forEach(function (h, i) { obj[h] = values[i]; });
+  var cost = [];
+  try { cost = JSON.parse(obj.Cost || "[]"); } catch (e) { cost = []; }
+  return {
+    id: obj.Id,
+    name: obj.Name,
+    description: obj.Description || "",
+    cost: cost,
+    image: obj.Image || "",
+    hidden: obj.Hidden === true || obj.Hidden === "TRUE"
+  };
+}
+
+// includeHidden=false (default) is what students see (the Loot tab).
+// includeHidden=true is what the Teacher tab's Manage Loot panel sees.
+function readLoot_(includeHidden) {
+  var sh = lootSheet_();
+  var values = sh.getDataRange().getValues();
+  if (values.length < 2) return [];
+  var headers = values[0];
+  var out = [];
+  for (var i = 1; i < values.length; i++) {
+    if (!values[i][0]) continue; // skip any blank row
+    var item = rowToLoot_(headers, values[i]);
+    if (!includeHidden && item.hidden) continue;
+    out.push(item);
+  }
+  return out;
+}
+
+function findLootRowIndex_(sh, id) {
+  var values = sh.getDataRange().getValues();
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][0]) === String(id)) return i + 1;
+  }
+  return -1;
+}
+
+function writeLootFields_(sh, row, fields) {
+  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  Object.keys(fields).forEach(function (key) {
+    var col = headers.indexOf(key) + 1;
+    if (col > 0) sh.getRange(row, col).setValue(fields[key]);
+  });
+}
+
+function uniqueLootId_(sh, base) {
+  var id = base, n = 2;
+  while (findLootRowIndex_(sh, id) !== -1) { id = base + "-" + n; n++; }
+  return id;
+}
+
+// Loot cost can only be made of the twelve ordinary runes — GOD is
+// reserved for runewords, not real-world prizes.
+function validateLootCost_(cost) {
+  if (!Array.isArray(cost) || cost.length === 0) throw new Error("Pick at least one rune for the cost.");
+  cost.forEach(function (code) {
+    code = String(code).toUpperCase();
+    if (RUNE_CODES.indexOf(code) === -1) throw new Error("Unknown rune in cost: " + code);
+  });
+}
+
 /* ---------------- HTTP entry points ---------------- */
 
 function doGet(e) {
@@ -367,6 +491,8 @@ function doPost(e) {
       case "craft": data = apiCraft(body.name, body.itemId, body.authPin); break;
       case "craftSour": data = apiCraftSour(body.name, body.mult, body.authPin); break;
       case "getRunewords": data = apiGetRunewords(); break;
+      case "getLoot": data = apiGetLoot(); break;
+      case "buyLoot": data = apiBuyLoot(body.name, body.itemId, body.authPin); break;
       case "getLogo": data = apiGetLogo(); break;
       case "teacherSetup": data = apiTeacherSetup(body.pass); break;
       case "teacherLogin": data = apiTeacherLogin(body.pass); break;
@@ -381,6 +507,12 @@ function doPost(e) {
       case "teacherEditRuneword": data = apiTeacherEditRuneword(body.pass, body.id, body); break;
       case "teacherSetRunewordHidden": data = apiTeacherSetRunewordHidden(body.pass, body.id, body.hidden); break;
       case "teacherDeleteRuneword": data = apiTeacherDeleteRuneword(body.pass, body.id); break;
+      case "teacherListLoot": data = apiTeacherListLoot(body.pass); break;
+      case "teacherAddLoot": data = apiTeacherAddLoot(body.pass, body); break;
+      case "teacherEditLoot": data = apiTeacherEditLoot(body.pass, body.id, body); break;
+      case "teacherSetLootHidden": data = apiTeacherSetLootHidden(body.pass, body.id, body.hidden); break;
+      case "teacherDeleteLoot": data = apiTeacherDeleteLoot(body.pass, body.id); break;
+      case "teacherListLootPurchases": data = apiTeacherListLootPurchases(body.pass); break;
       case "teacherListStudents": data = apiTeacherListStudents(body.pass); break;
       case "teacherAwardRune": data = apiTeacherAwardRune(body.pass, body.name, body.code); break;
       case "teacherListRuneAwards": data = apiTeacherListRuneAwards(body.pass); break;
@@ -808,6 +940,45 @@ function apiCraftSour(name, mult, authPin) {
   } finally { lock.releaseLock(); }
 }
 
+/* ---------------- Loot Shop (real-world prizes) — student-facing ---------------- */
+
+// Public: returns every visible loot item. Called by the frontend on load
+// to populate the Loot tab, same pattern as apiGetRunewords/getRunewords.
+function apiGetLoot() {
+  return readLoot_(false);
+}
+
+// Spends the item's rune cost and logs the purchase to LootPurchases, so
+// the Teacher tab can show who bought what and when. Unlike Crafted items,
+// a purchase is not added back to the student's own record — it's a
+// one-way trade for a physical prize, not something they keep in-app.
+function apiBuyLoot(name, itemId, authPin) {
+  requireName_(name);
+  var item = null;
+  var items = readLoot_(false); // hidden loot can't be bought
+  for (var i = 0; i < items.length; i++) { if (items[i].id === itemId) { item = items[i]; break; } }
+  if (!item) throw new Error("Unknown or unavailable loot item.");
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sh = studentsSheet_();
+    var row = ensureStudentRow_(sh, name);
+    checkPin_(sh, row, authPin);
+
+    var student = readStudentPublic_(sh, row);
+    var need = {};
+    item.cost.forEach(function (c) { need[c] = (need[c] || 0) + 1; });
+    Object.keys(need).forEach(function (code) {
+      if ((student.inventory[code] || 0) < need[code]) throw new Error("Missing runes for " + item.name + ".");
+    });
+    var deltas = {};
+    Object.keys(need).forEach(function (code) { deltas[code] = -need[code]; });
+    writeInventoryDelta_(sh, row, deltas);
+    lootPurchasesSheet_().appendRow([String(name).trim(), item.name, new Date().toISOString()]);
+    return readStudentPublic_(sh, row);
+  } finally { lock.releaseLock(); }
+}
+
 /* ---------------- Teacher actions ---------------- */
 
 function getConfig_(key) {
@@ -1040,6 +1211,111 @@ function apiTeacherDeleteRuneword(pass, id) {
   } finally { lock.releaseLock(); }
 }
 
+/* ---------------- Loot Shop (real-world prizes) — teacher-facing ---------------- */
+// Same add/edit/hide/delete pattern as the Runeword management functions
+// above, one level simpler (no slot, no quote, no "GOD" option).
+
+function apiTeacherListLoot(pass) {
+  requireTeacher_(pass);
+  return readLoot_(true);
+}
+
+function apiTeacherAddLoot(pass, body) {
+  requireTeacher_(pass);
+  var name = String(body.name || "").trim();
+  if (!name) throw new Error("Give the item a name.");
+  var cost = (body.cost || []).map(function (c) { return String(c).toUpperCase(); });
+  validateLootCost_(cost);
+  var image = body.image ? String(body.image) : "";
+  validateImage_(image);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sh = lootSheet_();
+    var id = uniqueLootId_(sh, slugify_(name));
+    sh.appendRow([
+      id, name, String(body.description || "").trim(), JSON.stringify(cost),
+      image, false, new Date().toISOString()
+    ]);
+    return readLoot_(true);
+  } finally { lock.releaseLock(); }
+}
+
+function apiTeacherEditLoot(pass, id, body) {
+  requireTeacher_(pass);
+  if (!id) throw new Error("Missing item id.");
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sh = lootSheet_();
+    var row = findLootRowIndex_(sh, id);
+    if (row === -1) throw new Error("That item no longer exists.");
+    var fields = {};
+    if (body.name !== undefined) {
+      var name = String(body.name).trim();
+      if (!name) throw new Error("Give the item a name.");
+      fields.Name = name;
+    }
+    if (body.description !== undefined) fields.Description = String(body.description).trim();
+    if (body.cost !== undefined) {
+      var cost = (body.cost || []).map(function (c) { return String(c).toUpperCase(); });
+      validateLootCost_(cost);
+      fields.Cost = JSON.stringify(cost);
+    }
+    if (body.image !== undefined) {
+      var image = String(body.image || "");
+      validateImage_(image);
+      fields.Image = image;
+    }
+    fields.UpdatedAt = new Date().toISOString();
+    writeLootFields_(sh, row, fields);
+    return readLoot_(true);
+  } finally { lock.releaseLock(); }
+}
+
+function apiTeacherSetLootHidden(pass, id, hidden) {
+  requireTeacher_(pass);
+  if (!id) throw new Error("Missing item id.");
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sh = lootSheet_();
+    var row = findLootRowIndex_(sh, id);
+    if (row === -1) throw new Error("That item no longer exists.");
+    writeLootFields_(sh, row, { Hidden: !!hidden, UpdatedAt: new Date().toISOString() });
+    return readLoot_(true);
+  } finally { lock.releaseLock(); }
+}
+
+// Permanently removes a loot item from the catalog. Purchases already
+// logged to LootPurchases are untouched (that's just a name+timestamp
+// snapshot, same as Crafted/RuneAwards/Transforms), but no one can buy it
+// again.
+function apiTeacherDeleteLoot(pass, id) {
+  requireTeacher_(pass);
+  if (!id) throw new Error("Missing item id.");
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sh = lootSheet_();
+    var row = findLootRowIndex_(sh, id);
+    if (row === -1) throw new Error("That item no longer exists.");
+    sh.deleteRow(row);
+    return readLoot_(true);
+  } finally { lock.releaseLock(); }
+}
+
+function apiTeacherListLootPurchases(pass) {
+  requireTeacher_(pass);
+  var sh = lootPurchasesSheet_();
+  var values = sh.getDataRange().getValues();
+  var rows = [];
+  for (var i = 1; i < values.length; i++) {
+    rows.push({ name: values[i][0], item: values[i][1], at: values[i][2] });
+  }
+  return rows.reverse();
+}
+
 function apiTeacherListPins(pass) {
   requireTeacher_(pass);
   var sh = SS.getSheetByName("Pins");
@@ -1140,14 +1416,14 @@ function apiTeacherResetPin(pass, name) {
 }
 
 // Wipes all student and milestone-code data, plus any active Power Word
-// and its redemption history, and the rune-award/transform logs.
-// Irreversible. (Does not touch Runewords.)
+// and its redemption history, and the rune-award/transform/loot-purchase
+// logs. Irreversible. (Does not touch Runewords or Loot.)
 function apiTeacherReset(pass) {
   requireTeacher_(pass);
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    ["Students", "Pins", "PowerWordRedemptions", "RuneAwards", "Transforms"].forEach(function (name) {
+    ["Students", "Pins", "PowerWordRedemptions", "RuneAwards", "Transforms", "LootPurchases"].forEach(function (name) {
       var sh = SS.getSheetByName(name);
       var lastRow = sh.getLastRow();
       if (lastRow > 1) sh.getRange(2, 1, lastRow - 1, sh.getLastColumn()).clearContent();

@@ -379,6 +379,7 @@
   <button data-tab="inventory">My Runes</button>
   <button data-tab="transform">Transform</button>
   <button data-tab="craft">Craft</button>
+  <button data-tab="loot">Loot</button>
   <button data-tab="codex">Codex</button>
   <button data-tab="teacher">Teacher</button>
 </nav>
@@ -448,6 +449,15 @@
       <h2>Craft a Runeword</h2>
       <p class="lede">Combining runes in an item makes it magical — and destroys the runes used. Green-bordered items are ready to craft right now.</p>
       <div class="item-grid" id="itemGrid"></div>
+    </div>
+  </section>
+
+  <!-- LOOT -->
+  <section id="tab-loot" class="tabpane" style="display:none">
+    <div class="panel">
+      <h2>Loot Shop</h2>
+      <p class="lede">Not everyone's crafting magic items — trade runes in for real prizes from your educator instead. Green-bordered items are ready to buy right now.</p>
+      <div class="item-grid" id="lootGrid"></div>
     </div>
   </section>
 
@@ -534,6 +544,7 @@
 
       <nav class="subtabs" id="teacherSubtabs">
         <button data-subtab="items">Manage Items</button>
+        <button data-subtab="loot">Manage Loot</button>
         <button data-subtab="awards">Award Runes</button>
         <button data-subtab="transforms">Transform History</button>
         <button data-subtab="students">Students</button>
@@ -547,6 +558,22 @@
           <p class="lede">Add, edit, hide, or delete runewords. Hidden items stop showing up in Craft and the Codex, but stay listed here — students who already crafted one keep it either way. God Runes are no longer granted by hand here; students forge them under the Transform tab by combining one of every ordinary rune.</p>
           <div id="itemFormWrap" style="display:none;"></div>
           <div id="itemsAdminList"></div>
+        </div>
+      </div>
+
+      <div class="subtabpane" id="subtab-loot" style="display:none">
+        <div class="panel">
+          <div class="row between"><h2>Manage Loot</h2><button class="btn small" id="addLootBtn">+ Add New Loot</button></div>
+          <p class="lede">Add, edit, hide, or delete real-world prizes students can buy with runes. Hidden loot stops showing up in the Loot Shop, but stays listed here. Loot can only be bought with the twelve ordinary runes — never a God Rune.</p>
+          <div id="lootFormWrap" style="display:none;"></div>
+          <div id="lootAdminList"></div>
+        </div>
+        <div class="panel">
+          <div class="row between"><h2>Loot Purchase History</h2><button class="btn ghost small" id="refreshLootPurchasesBtn">Refresh</button></div>
+          <table>
+            <thead><tr><th>Adventurer</th><th>Loot Purchased</th><th>Date</th></tr></thead>
+            <tbody id="lootPurchasesTable"></tbody>
+          </table>
         </div>
       </div>
 
@@ -671,6 +698,7 @@
     {code:"ZOD",   prob:2,  points:27},
   ];
   const RUNE_MAP = Object.fromEntries(RUNES.map(r=>[r.code,r]));
+  const RUNE_CODES = RUNES.map(r=>r.code);
 
   const GLYPHS = {
     TIR:   "M30 8 L30 52 M30 8 L44 22 M30 8 L16 22",
@@ -694,6 +722,9 @@
   // add/edit/hide/delete items from the Teacher tab without ever touching
   // this file. This starts empty and is populated before the first render.
   let RUNEWORDS = [];
+  // Loot Shop catalog (real-world prizes, not in-game items) — fetched the
+  // same way, from the "Loot" sheet tab, via loadLoot().
+  let LOOT = [];
   const SOUR_KEY_BASE = ["SHAEL","IO","JAH","BER"];
   const SOUR_KEY_SIZES = [
     {label:"Small (2d6, ×1)", mult:1},
@@ -732,6 +763,17 @@
       RUNEWORDS = await api("getRunewords", {});
     }catch(e){
       RUNEWORDS = [];
+    }
+  }
+
+  // Pulls the current loot catalog from the backend (Loot sheet). Call this
+  // again after any teacher add/edit/hide/delete so the Loot Shop reflects
+  // the change without a page reload — same pattern as loadRunewords().
+  async function loadLoot(){
+    try{
+      LOOT = await api("getLoot", {});
+    }catch(e){
+      LOOT = [];
     }
   }
 
@@ -1306,10 +1348,10 @@
   // visual cue for whoever just clicked it, without waiting on the grid
   // refresh. Re-used by both the ordinary item buttons and the Sour Key
   // button since they share the same markup/behavior.
-  function showCraftedCue(btn){
+  function showCraftedCue(btn, label){
     if(!btn) return;
     btn.classList.add("success");
-    btn.textContent = "Crafted";
+    btn.textContent = label || "Crafted";
     btn.disabled = true;
   }
 
@@ -1351,6 +1393,74 @@
   document.addEventListener("change", e=>{
     if(e.target && e.target.id==="sourSizeSel") renderCraft();
   });
+
+  /* ============ LOOT ============ */
+  // Works just like Craft — same item-card markup, same "have/missing" req
+  // chips, same green success cue on the button — except items are bought
+  // (not crafted) with plain runes, never a God Rune, and buying one isn't
+  // added back to the student's own Crafted list; it's a one-way trade for
+  // a physical prize the teacher hands over in person.
+  async function renderLoot(){
+    const grid = document.getElementById("lootGrid");
+    const name = currentName();
+    if(!name){ grid.innerHTML = `<p class="lede">Enter your adventurer name above first.</p>`; return; }
+    grid.innerHTML = `<p class="lede">Loading…</p>`;
+    let student;
+    try{ student = await loadStudent(); }
+    catch(err){ grid.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`; return; }
+    if(!student) return;
+
+    if(!LOOT.length){
+      grid.innerHTML = `<p class="lede">No loot available right now — check back later.</p>`;
+      return;
+    }
+
+    let cards = LOOT.map(item=>{
+      const need = needsFor(item.cost);
+      let can = true;
+      const chips = Object.entries(need).map(([code,qty])=>{
+        const owned = student.inventory[code]||0;
+        const have = owned >= qty;
+        if(!have) can = false;
+        return `<span class="req-chip ${have?'have':'missing'}">${glyphSVG(code)} ${code}${qty>1?' ×'+qty:''}</span>`;
+      }).join("");
+      return {item, can, chips};
+    });
+
+    grid.innerHTML = cards.map(({item,can,chips})=>`
+      <div class="item-card ${can?'craftable':''}" data-id="${item.id}">
+        <div class="item-img-container">
+          <img src="${itemImageSrc(item)}" alt="${item.name}" loading="lazy" onerror="this.style.display='none'">
+        </div>
+        <div class="head"><span class="name">${item.name}</span></div>
+        <div class="effect">${item.description}</div>
+        <div class="recipe">${chips}</div>
+        <button class="btn small" data-buy="${item.id}" ${can?'':'disabled'}>Buy</button>
+      </div>
+    `).join("");
+
+    grid.querySelectorAll("button[data-buy]").forEach(b=>{
+      b.addEventListener("click", ()=>buyLootItem(b.dataset.buy, name));
+    });
+  }
+
+  async function buyLootItem(id, name){
+    const item = LOOT.find(i=>i.id===id);
+    if(!item) return;
+    const authPin = await ensureUnlocked(name);
+    if(!authPin) return;
+    const btn = document.querySelector(`button[data-buy="${CSS.escape(id)}"]`);
+    try{
+      const updated = await api("buyLoot", {name, itemId:id, authPin});
+      studentCache = updated;
+      showCraftedCue(btn, "Bought");
+      renderInventory();
+      setTimeout(renderLoot, CRAFT_CUE_MS);
+    }catch(err){
+      alert(err.message);
+      renderLoot();
+    }
+  }
 
   /* ============ CODEX ============ */
   function renderCodex(){
@@ -1726,6 +1836,7 @@
   // panels' worth of data every time the Teacher tab is unlocked.
   const SUBTAB_LOADERS = {
     items: renderTeacherItems,
+    loot: ()=>{ renderLootAdmin(); renderLootPurchaseHistory(); },
     awards: ()=>{ renderAwardStudentOptions(); renderRuneAwardHistory(); },
     transforms: renderTransformHistory,
     students: renderTeacherStudents,
@@ -1981,6 +2092,201 @@
     });
   }
 
+  /* ============ TEACHER: Manage Loot ============ */
+  // Same add/edit/hide/delete pattern as Manage Items above, one level
+  // simpler (no slot, no quote, and the rune picker only offers the twelve
+  // ordinary runes — RUNE_CODES, not RECIPE_CODES — since loot is never
+  // bought with a God Rune).
+
+  let lootAdminCache = [];
+  let lootFormEditingId = null; // null = "add new" mode
+  let lootFormImage = null;     // pending data: URI from a file picker, or null to leave unchanged
+
+  async function renderLootAdmin(){
+    const list = document.getElementById("lootAdminList");
+    list.innerHTML = `<p class="lede">Loading…</p>`;
+    try{
+      lootAdminCache = await api("teacherListLoot", {pass: teacherPass()});
+    }catch(err){
+      list.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
+      return;
+    }
+    if(!lootAdminCache.length){
+      list.innerHTML = `<p class="lede">No loot items yet — click "+ Add New Loot" above.</p>`;
+      return;
+    }
+    list.innerHTML = lootAdminCache.map(item=>{
+      const costStr = item.cost.join(" + ");
+      const imgSrc = itemImageSrc(item);
+      return `
+      <div class="admin-item-row ${item.hidden?'hidden-item':''}">
+        <div class="item-img-container admin-item-thumb"><img src="${imgSrc}" alt="${escapeHTML(item.name)}" onerror="this.style.display='none'"></div>
+        <div class="admin-item-info">
+          <div class="name">${escapeHTML(item.name)} ${item.hidden?'<span class="tag">hidden</span>':''}</div>
+          <div class="meta">${escapeHTML(costStr)}</div>
+        </div>
+        <div class="row" style="gap:6px;">
+          <button class="btn small ghost" data-edit-loot="${item.id}">Edit</button>
+          <button class="btn small ghost" data-toggle-loot="${item.id}">${item.hidden?'Show':'Hide'}</button>
+          <button class="btn small danger" data-delete-loot="${item.id}">Delete</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  document.getElementById("lootAdminList").addEventListener("click", async e=>{
+    const editBtn = e.target.closest("[data-edit-loot]");
+    const toggleBtn = e.target.closest("[data-toggle-loot]");
+    const deleteBtn = e.target.closest("[data-delete-loot]");
+    if(editBtn){
+      const item = lootAdminCache.find(i=>i.id===editBtn.dataset.editLoot);
+      if(item) openLootForm(item);
+      return;
+    }
+    if(toggleBtn){
+      const id = toggleBtn.dataset.toggleLoot;
+      const item = lootAdminCache.find(i=>i.id===id);
+      if(!item) return;
+      try{
+        await api("teacherSetLootHidden", {pass: teacherPass(), id, hidden: !item.hidden});
+        await loadLoot();
+        renderLootAdmin();
+        renderLoot();
+      }catch(err){ alert(err.message); }
+      return;
+    }
+    if(deleteBtn){
+      const id = deleteBtn.dataset.deleteLoot;
+      const item = lootAdminCache.find(i=>i.id===id);
+      if(!item) return;
+      if(!confirm(`Permanently delete "${item.name}"? This cannot be undone.`)) return;
+      try{
+        await api("teacherDeleteLoot", {pass: teacherPass(), id});
+        await loadLoot();
+        renderLootAdmin();
+        renderLoot();
+      }catch(err){ alert(err.message); }
+      return;
+    }
+  });
+
+  document.getElementById("addLootBtn").addEventListener("click", ()=>{
+    const wrap = document.getElementById("lootFormWrap");
+    const isOpenForAdd = wrap.style.display !== "none" && lootFormEditingId === null;
+    if(isOpenForAdd){ closeLootForm(); } else { openLootForm(null); }
+  });
+
+  function closeLootForm(){
+    document.getElementById("lootFormWrap").style.display = "none";
+    document.getElementById("lootFormWrap").innerHTML = "";
+    lootFormEditingId = null;
+    lootFormImage = null;
+  }
+
+  function openLootForm(item){
+    lootFormEditingId = item ? item.id : null;
+    lootFormImage = null;
+    const wrap = document.getElementById("lootFormWrap");
+    const costSet = new Set(item ? item.cost : []);
+    const chipsHTML = RUNE_CODES.map(code=>{
+      const on = costSet.has(code);
+      return `<label class="recipe-check ${on?'on':''}" data-code="${code}">
+        <input type="checkbox" value="${code}" ${on?'checked':''} style="display:none;">
+        ${glyphSVG(code)}<span>${code}</span>
+      </label>`;
+    }).join("");
+    const imgSrc = item ? itemImageSrc(item) : "";
+
+    wrap.innerHTML = `
+      <div class="item-form">
+        <h3 style="font-size:0.95rem;color:var(--ink);margin-bottom:10px;">${item?'Edit loot item':'Add a new loot item'}</h3>
+        <div class="row" style="gap:12px;align-items:start;flex-wrap:wrap;">
+          <div style="flex:1;min-width:220px;">
+            <div class="field"><label>Name</label><input type="text" id="lootFormName" style="width:100%;" value="${item?escapeHTML(item.name):''}"></div>
+            <div class="field" style="margin-top:10px;"><label>Description</label><textarea id="lootFormDescription" rows="3" style="width:100%;background:var(--stone);border:1px solid var(--stone-line);color:var(--ink);border-radius:var(--radius);padding:9px 11px;font-family:'Spectral',serif;">${item?escapeHTML(item.description):''}</textarea></div>
+          </div>
+          <div style="width:180px;">
+            <label style="display:block;font-size:0.72rem;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px;">Photo</label>
+            <div class="item-img-container" id="lootFormImgPreview" style="height:110px;">${imgSrc?`<img src="${imgSrc}" alt="">`:'<span style="color:var(--ink-faint);font-size:0.75rem;">No photo</span>'}</div>
+            <input type="file" id="lootFormPhoto" accept="image/*" style="margin-top:8px;font-size:0.78rem;">
+          </div>
+        </div>
+        <div class="field" style="margin-top:14px;">
+          <label>Rune cost — click the runes this item requires</label>
+          <div class="recipe" style="margin-top:6px;">${chipsHTML}</div>
+        </div>
+        <div class="row" style="margin-top:16px;gap:10px;">
+          <button class="btn" id="lootFormSaveBtn">${item?'Save Changes':'Add Loot'}</button>
+          <button class="btn ghost" id="lootFormCancelBtn">Cancel</button>
+        </div>
+        <div id="lootFormMsg"></div>
+      </div>
+    `;
+    wrap.style.display = "block";
+
+    wrap.querySelectorAll(".recipe-check").forEach(el=>{
+      const input = el.querySelector("input");
+      input.addEventListener("change", ()=>{
+        el.classList.toggle("on", input.checked);
+      });
+    });
+
+    document.getElementById("lootFormPhoto").addEventListener("change", async (e)=>{
+      const file = e.target.files[0];
+      if(!file) return;
+      const preview = document.getElementById("lootFormImgPreview");
+      preview.innerHTML = `<span style="color:var(--ink-faint);font-size:0.75rem;">Processing…</span>`;
+      try{
+        lootFormImage = await resizeImageFile(file);
+        preview.innerHTML = `<img src="${lootFormImage}" alt="">`;
+      }catch(err){
+        preview.innerHTML = `<span style="color:var(--blood);font-size:0.75rem;">${escapeHTML(err.message)}</span>`;
+      }
+    });
+
+    document.getElementById("lootFormCancelBtn").addEventListener("click", closeLootForm);
+
+    document.getElementById("lootFormSaveBtn").addEventListener("click", async ()=>{
+      const msgEl = document.getElementById("lootFormMsg");
+      const name = document.getElementById("lootFormName").value.trim();
+      const description = document.getElementById("lootFormDescription").value.trim();
+      const cost = [...wrap.querySelectorAll(".recipe-check.on")].map(el=>el.dataset.code);
+      if(!name){ msgEl.innerHTML = `<div class="msg error">Give the item a name.</div>`; return; }
+      if(!cost.length){ msgEl.innerHTML = `<div class="msg error">Pick at least one rune for the cost.</div>`; return; }
+      msgEl.innerHTML = `<div class="msg info">Saving…</div>`;
+      const payload = {name, description, cost};
+      if(lootFormImage !== null) payload.image = lootFormImage;
+      try{
+        if(lootFormEditingId){
+          await api("teacherEditLoot", {pass: teacherPass(), id: lootFormEditingId, ...payload});
+        } else {
+          await api("teacherAddLoot", {pass: teacherPass(), ...payload});
+        }
+        closeLootForm();
+        await loadLoot();
+        renderLootAdmin();
+        renderLoot();
+      }catch(err){
+        msgEl.innerHTML = `<div class="msg error">${escapeHTML(err.message)}</div>`;
+      }
+    });
+  }
+
+  document.getElementById("refreshLootPurchasesBtn").addEventListener("click", renderLootPurchaseHistory);
+
+  async function renderLootPurchaseHistory(){
+    const table = document.getElementById("lootPurchasesTable");
+    table.innerHTML = `<tr><td colspan="3" style="color:var(--ink-faint);">Loading…</td></tr>`;
+    try{
+      const purchases = await api("teacherListLootPurchases", {pass: teacherPass()});
+      table.innerHTML = purchases.length ? purchases.map(p=>`
+        <tr><td>${escapeHTML(p.name)}</td><td>${escapeHTML(p.item)}</td><td>${new Date(p.at).toLocaleString()}</td></tr>
+      `).join("") : `<tr><td colspan="3" style="color:var(--ink-faint);">No loot purchased yet.</td></tr>`;
+    }catch(err){
+      table.innerHTML = `<tr><td colspan="3" class="msg error">${escapeHTML(err.message)}</div>`;
+    }
+  }
+
   function renderTeacher(){
     const unlocked = isTeacherUnlocked();
     document.getElementById("teacherLockPanel").style.display = unlocked ? "none" : "block";
@@ -2003,6 +2309,7 @@
     renderInventory();
     renderTransform();
     renderCraft();
+    renderLoot();
     renderCodex();
     renderTeacher();
   }
@@ -2010,7 +2317,7 @@
   checkConnection();
   updateLockIcon();
   loadLogo();
-  loadRunewords().then(renderAll);
+  Promise.all([loadRunewords(), loadLoot()]).then(renderAll);
 })();
 </script>
 </body>
