@@ -1296,16 +1296,35 @@
     `;
   }
 
+  // How long the green "Crafted" cue stays on the clicked button before the
+  // grid does its normal re-render (which recalculates craftability against
+  // the student's new, post-spend inventory and would otherwise overwrite
+  // the cue almost instantly).
+  const CRAFT_CUE_MS = 1200;
+
+  // Flips a single button to the green "Crafted" state as an immediate
+  // visual cue for whoever just clicked it, without waiting on the grid
+  // refresh. Re-used by both the ordinary item buttons and the Sour Key
+  // button since they share the same markup/behavior.
+  function showCraftedCue(btn){
+    if(!btn) return;
+    btn.classList.add("success");
+    btn.textContent = "Crafted";
+    btn.disabled = true;
+  }
+
   async function craftItem(id, name){
     const item = RUNEWORDS.find(i=>i.id===id);
     if(!item) return;
     const authPin = await ensureUnlocked(name);
     if(!authPin) return;
+    const btn = document.querySelector(`button[data-craft="${CSS.escape(id)}"]`);
     try{
       const updated = await api("craft", {name, itemId:id, authPin});
       studentCache = updated;
-      renderCraft();
+      showCraftedCue(btn);
       renderInventory();
+      setTimeout(renderCraft, CRAFT_CUE_MS);
     }catch(err){
       alert(err.message);
       renderCraft();
@@ -1317,11 +1336,13 @@
     const mult = sel ? parseInt(sel.value,10) : 1;
     const authPin = await ensureUnlocked(name);
     if(!authPin) return;
+    const btn = document.querySelector(`button[data-craft-sour]`);
     try{
       const updated = await api("craftSour", {name, mult, authPin});
       studentCache = updated;
-      renderCraft();
+      showCraftedCue(btn);
       renderInventory();
+      setTimeout(renderCraft, CRAFT_CUE_MS);
     }catch(err){
       alert(err.message);
       renderCraft();
