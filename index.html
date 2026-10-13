@@ -559,6 +559,14 @@
           <div id="itemFormWrap" style="display:none;"></div>
           <div id="itemsAdminList"></div>
         </div>
+        <div class="panel">
+          <div class="row between"><h2>Craft History</h2><button class="btn ghost small" id="refreshCraftsBtn">Refresh</button></div>
+          <p class="lede">A running record of every item adventurers have crafted, and when.</p>
+          <table>
+            <thead><tr><th>Adventurer</th><th>Item Crafted</th><th>Date</th></tr></thead>
+            <tbody id="craftHistoryTable"></tbody>
+          </table>
+        </div>
       </div>
 
       <div class="subtabpane" id="subtab-loot" style="display:none">
@@ -1827,6 +1835,22 @@
     }
   }
 
+  /* ============ TEACHER: Craft History (lives in Manage Items) ============ */
+  document.getElementById("refreshCraftsBtn").addEventListener("click", renderCraftHistory);
+
+  async function renderCraftHistory(){
+    const table = document.getElementById("craftHistoryTable");
+    table.innerHTML = `<tr><td colspan="3" style="color:var(--ink-faint);">Loading…</td></tr>`;
+    try{
+      const crafts = await api("teacherListCrafts", {pass: teacherPass()});
+      table.innerHTML = crafts.length ? crafts.map(c=>`
+        <tr><td>${escapeHTML(c.name)}</td><td>${escapeHTML(c.item)}</td><td>${new Date(c.at).toLocaleString()}</td></tr>
+      `).join("") : `<tr><td colspan="3" style="color:var(--ink-faint);">No items crafted yet.</td></tr>`;
+    }catch(err){
+      table.innerHTML = `<tr><td colspan="3"><div class="msg error">${escapeHTML(err.message)}</div></td></tr>`;
+    }
+  }
+
   /* ============ TEACHER: subtab strip (Manage Items / Award Runes /
      Transform History / Students / PIN History / Danger Zone) ============ */
   // Every one of these starts collapsed; clicking a subtab button opens its
@@ -1835,7 +1859,7 @@
   // both matches the "collapsed until clicked" ask and avoids fetching six
   // panels' worth of data every time the Teacher tab is unlocked.
   const SUBTAB_LOADERS = {
-    items: renderTeacherItems,
+    items: ()=>{ renderTeacherItems(); renderCraftHistory(); },
     loot: ()=>{ renderLootAdmin(); renderLootPurchaseHistory(); },
     awards: ()=>{ renderAwardStudentOptions(); renderRuneAwardHistory(); },
     transforms: renderTransformHistory,
